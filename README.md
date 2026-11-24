@@ -2,7 +2,7 @@
 
 Aluguel de Xbox (ou de um jogo rodando no próprio PC) por tempo, direto no navegador. O cliente paga via Pix, abre um link e joga com o controle que já tem — sem instalar nada.
 
-> **Status:** projeto funcional em modo de teste (pagamento mock). A injeção real de controle no console ainda não está implementada; veja [Limitações](#limitações).
+> **Status:** projeto funcional em modo de teste (pagamento mock). Jogos **no PC** já têm controle via a [ponte de controle](#controle-no-pc-ponte). A injeção de controle no **Xbox físico** ainda não está implementada; veja [Limitações](#limitações).
 
 ## Como funciona
 
@@ -36,6 +36,7 @@ O vídeo **não passa pelo servidor**: ele vai direto do PC host para o navegado
 - PC host com Chrome/Edge atualizado
 - Para Xbox: placa de captura HDMI reconhecida como dispositivo de vídeo/áudio
 - Para PC: o jogo/emulador rodando em uma janela
+- Para PC (controle): Windows 10/11, **Python 3** e o driver **ViGEmBus** (instalados pelo `start-bridge.bat`)
 - HTTPS (ou `localhost`) — obrigatório para captura de tela, gamepad e WebSocket seguro em produção
 
 ## Rodar localmente
@@ -110,6 +111,28 @@ Se “Iniciar captura sozinho” estiver marcado, o host abre a placa automatica
 
 A captura de janela exige um clique manual (o navegador não permite iniciar sozinha) e a janela precisa continuar visível durante a sessão.
 
+## Controle no PC (ponte)
+
+Para o cliente **jogar** (e não só assistir) um jogo no PC, rode a ponte no mesmo PC que roda o jogo:
+
+```
+Controle do cliente ──> navegador (play) ──WebSocket──> servidor ──> ponte ──> controle Xbox 360 virtual ──> jogo
+```
+
+1. Suba o servidor (`start.bat`).
+2. Em outro terminal, dê dois cliques em `start-bridge.bat` (ou `npm run bridge`).
+   - Na **primeira vez** ele instala o `vgamepad` e o driver **ViGEmBus**. Aceite o pedido de permissão do Windows e, se pedir, reinicie o PC.
+3. Abra o jogo, abra o `/host` e escolha **Janela do PC**.
+4. O painel (`/admin`) mostra **Ponte de controle: online**.
+
+Detalhes:
+
+- A ponte lê a chave de `HOST_KEY` (no `.env`) ou de `data/host-key.txt`. Se o servidor estiver em outra máquina, defina `BRIDGE_URL=wss://seu-dominio.com/ws` e a mesma `HOST_KEY` no `.env` do PC do jogo.
+- Os comandos só são aplicados **enquanto há sessão ativa**. Ao terminar a sessão, perder a conexão ou ficar 3 s sem sinal do cliente, todos os botões são soltos.
+- Funciona com controles em layout *standard* (Xbox, PS4/PS5 e a maioria dos controles no Chrome/Edge).
+- Para testar sem driver (ou fora do Windows): `npm run bridge:dry` mostra no terminal o que seria apertado.
+- Se o jogo não reconhecer o controle, feche e reabra o jogo **depois** de iniciar a ponte.
+
 ## Hospedagem
 
 O servidor é um processo Node único. Em produção:
@@ -139,11 +162,12 @@ Para a maioria das redes domésticas, STUN público resolve. Se o host estiver a
 node --test
 ```
 
-Cobrem preços, fluxo completo (pagamento, expiração, fila, desistência) e integração HTTP + WebSocket (páginas, compra, handshake WebRTC, extensão, admin).
+Cobrem preços, fluxo completo (pagamento, expiração, fila, desistência), integração HTTP + WebSocket (páginas, compra, handshake WebRTC, extensão, admin) e a ponte de controle (mapeamento, bloqueio fora de sessão, liberação de botões).
 
 ## Limitações
 
-- **Controle:** o player já envia eventos de gamepad por WebSocket para o papel `bridge`, mas a injeção real no Xbox/PC (ViGEmBus, Xbox app etc.) **não está implementada**. Sem isso, o cliente vê e ouve, mas não joga de verdade.
+- **Controle no Xbox físico:** a ponte cobre jogos **no PC** (controle virtual via ViGEmBus). O console Xbox não aceita um controle virtual; para ele é preciso um adaptador de hardware ou transmitir o jogo para o PC (app do Xbox) e jogar por lá.
+- **Controle:** vale o layout *standard* do navegador. Controles fora do padrão podem ter botões trocados; o teste real com ViGEmBus só pode ser feito no Windows.
 - **Captura de janela:** não pode ser iniciada automaticamente; depende de um clique no PC host.
 - **Uma máquina por instalação:** o estado tem um único slot. Para vender Xbox + vários PCs ao mesmo tempo, é necessário evoluir para múltiplas estações.
 - **Pagamento:** o modo mock não cobra nada; o modo real depende do Mercado Pago e de um webhook público em HTTPS.
