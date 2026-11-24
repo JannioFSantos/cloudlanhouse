@@ -3,8 +3,7 @@
 # No Coolify: Docker Compose Location = /docker-compose.coolify.yml
 #
 # - O domínio e o HTTPS são do próprio Coolify (proxy Traefik): não há Caddy aqui.
-# - SERVICE_FQDN_APP_8080 pede ao Coolify um domínio para a porta 8080 do serviço;
-#   você pode trocá-lo pelo seu na aba do serviço.
+# - SERVICE_FQDN_APP_8080 define o domínio público do serviço na porta 8080.
 # - As variáveis abaixo aparecem na aba "Environment Variables" do Coolify.
 #   Deixe em branco o que não usar: segredos vazios são gerados e guardados no volume.
 # - O estado (sessão, pedidos, fila, segredos) fica no volume /data. Não remova.
@@ -16,8 +15,8 @@ services:
     restart: unless-stopped
     environment:
       # Domínio público gerenciado pelo Coolify (porta interna 8080)
-      SERVICE_FQDN_APP_8080: ""
-      BASE_URL: ${SERVICE_URL_APP}
+      SERVICE_FQDN_APP_8080: "cloudlanhouse.v6.rocks"
+      BASE_URL: "https://cloudlanhouse.v6.rocks"
       PORT: "8080"
       DATA_DIR: /data
       TRUST_PROXY: "1" # atrás do proxy do Coolify

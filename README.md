@@ -184,13 +184,13 @@ O arquivo `docker-compose.coolify.yml` sobe só o servidor; o domínio, o HTTPS 
 
 1. No Coolify: **New Resource → Public/Private Repository** → escolha este repositório.
 2. **Build Pack: Docker Compose** e **Docker Compose Location: `/docker-compose.coolify.yml`**.
-3. Na aba do serviço `app`, confira o **domínio** (porta interna `8080`). O Coolify gera o HTTPS.
+3. O serviço `app` está configurado com o domínio `cloudlanhouse.v6.rocks` (porta interna `8080`). Aponte o DNS do domínio para a VPS e confirme o domínio na aba do serviço; o Coolify gera o HTTPS.
 4. Em **Environment Variables**, preencha o que for usar: `ADMIN_PASSWORD`, `HOST_KEY`, `PAYMENT_MODE`, `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `MP_NOTIFICATION_URL` etc. Vazio = o servidor gera e guarda os segredos no volume.
 5. **Deploy**. Se não definiu senha e chave, veja-as em **Logs**.
 
 Observações:
 
-- `BASE_URL` vem do domínio configurado no Coolify (`SERVICE_URL_APP`); não precisa definir à mão.
+- `BASE_URL` e o domínio público estão definidos como `https://cloudlanhouse.v6.rocks` no Compose para manter os links, cookies seguros e URLs do WebSocket alinhados.
 - Mantenha o volume `app-data`: nele ficam sessão, pedidos, fila e segredos. Sem ele, cada deploy zera tudo.
 - O **PC host continua no Windows**: abra `https://SEU-DOMINIO/host` e, para o controle, rode a ponte com `BRIDGE_URL=wss://SEU-DOMINIO/ws` e a mesma `HOST_KEY`.
 - TURN: o `coturn` precisa de rede `host` e de uma faixa de portas UDP, o que não combina com o proxy do Coolify. Para quem está atrás de CGNAT, rode o TURN em outro serviço/VPS e preencha `TURN_URL`, `TURN_USERNAME` e `TURN_CREDENTIAL`.
