@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Xbox Play — jogue Xbox Series S no navegador</title>
+  <meta name="description" content="Alugue o Xbox Series S por hora e jogue direto no navegador. Pix, sem instalar nada." />
+  <meta name="theme-color" content="#06060a" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/">
+        <span class="brand-mark">▶</span>XBOX<span>PLAY</span>
+      </a>
+      <div id="topBadge" class="badge">
+        <span class="dot"></span><span id="topBadgeText">carregando…</span>
+      </div>
+      <nav>
+        <a href="#precos">Preços</a>
+        <a href="#regras">Regras</a>
+        <a href="/host">Host</a>
+        <a href="/admin">Painel</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page">
+    <div id="app">
+      <div class="hero">
+        <div>
+          <div class="skeleton" style="height: 22px; width: 180px; margin-bottom: 22px;"></div>
+          <div class="skeleton" style="height: 62px; width: 90%; margin-bottom: 14px;"></div>
+          <div class="skeleton" style="height: 62px; width: 65%; margin-bottom: 22px;"></div>
+          <div class="skeleton" style="height: 18px; width: 80%;"></div>
+        </div>
+        <div class="card">
+          <div class="skeleton" style="height: 180px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <section id="precos" class="mt-6" style="scroll-margin-top: 90px;">
+      <p class="section-title">Tabela de preços</p>
+      <div class="grid-3" id="priceTable"></div>
+      <p class="muted tiny mt-4">
+        O desconto é automático: cada hora comprada depois da primeira custa R$ 1 a menos.
+        O limite é <strong>4 horas por sessão</strong> — o total máximo fica em R$ 22,00.
+      </p>
+    </section>
+
+    <section id="regras" class="mt-6" style="scroll-margin-top: 90px;">
+      <p class="section-title">Como funciona</p>
+      <div class="grid-2">
+        <div class="card tight">
+          <h3 class="mt-0">Relógio e desistência</h3>
+          <p class="muted tiny" style="line-height: 1.65; margin-bottom: 0;">
+            O tempo começa a contar quando a transmissão fica pronta. <strong>Ele não pausa</strong>:
+            se você fechar a aba, cair a internet ou sair para almoçar, o relógio continua.
+            Você pode voltar pelo mesmo link até o tempo acabar.
+            Se clicar em <strong>desistir</strong>, a sessão encerra na hora, o valor não é
+            devolvido e o Xbox fica livre para outra pessoa.
+          </p>
+        </div>
+        <div class="card tight">
+          <h3 class="mt-0">Do seu lado</h3>
+          <p class="muted tiny" style="line-height: 1.65; margin-bottom: 0;">
+            Você precisa de um <strong>controle de Xbox</strong> conectado ao seu aparelho
+            (USB ou Bluetooth) e internet estável — 10 Mbps já dá 720p60 com folga.
+            Funciona no Chrome/Edge do PC, Android e iPhone. Nada para instalar.
+            A imagem e o som vêm do Xbox, em tempo real, via WebRTC.
+          </p>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <div>
+        <strong>Xbox Play</strong> — aluguel por hora do console, via navegador.<br />
+        Pagamento processado pelo Mercado Pago. Sem cadastro, sem instalação.
+      </div>
+      <div>
+        <a href="/host">Área do host</a> · <a href="/admin">Painel</a><br />
+        <span id="footerMode"></span>
+      </div>
+    </div>
+  </footer>
+
+  <script type="module" src="/assets/index.js"></script>
+</body>
+</html>

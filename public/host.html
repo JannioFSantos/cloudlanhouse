@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Host de captura — Xbox Play</title>
+  <meta name="theme-color" content="#06060a" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/"><span class="brand-mark">▶</span>XBOX<span>PLAY</span></a>
+      <div class="badge" id="connBadge"><span class="dot off" id="connDot"></span><span id="connText">desconectado</span></div>
+      <nav>
+        <a href="/">Site</a>
+        <a href="/admin">Painel</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page" style="max-width: 1000px;">
+    <div class="card" id="authCard">
+      <div class="card-head"><h2>Conectar este PC</h2><span class="badge">host</span></div>
+      <p class="muted tiny" style="margin-top: 0;">
+        Cole a <strong>chave do host</strong> que aparece no terminal do servidor
+        (ou no painel admin). Esta página deve ficar aberta no PC que captura o jogo:
+        console via placa HDMI ou jogo rodando no próprio PC.
+      </p>
+      <div class="stack" style="max-width: 420px;">
+        <div class="field">
+          <label for="hostKeyInput">Chave do host</label>
+          <input id="hostKeyInput" type="password" autocomplete="off" placeholder="cole a chave aqui" />
+        </div>
+        <button class="btn btn-primary" id="btnConnect">Conectar</button>
+      </div>
+    </div>
+
+    <div id="main" class="hidden">
+      <div class="admin-grid">
+        <div class="stack">
+          <div class="card">
+            <div class="card-head">
+              <h2>Transmissão</h2>
+              <span class="badge" id="sessionBadge"><span class="dot"></span><span id="sessionBadgeText">sem sessão</span></span>
+            </div>
+
+            <div class="grid-2">
+              <div class="stat">
+                <div class="k">Sessão</div>
+                <div class="v" id="sessionState">—</div>
+              </div>
+              <div class="stat">
+                <div class="k">Tempo restante</div>
+                <div class="v timer" id="sessionClock">—</div>
+              </div>
+            </div>
+
+            <div class="kv mt-4"><span class="k">Cliente</span><span class="v" id="sessionCustomer">—</span></div>
+            <div class="kv"><span class="k">Pacote</span><span class="v" id="sessionHours">—</span></div>
+            <div class="kv"><span class="k">Player conectado</span><span class="v" id="viewerState">não</span></div>
+            <div class="kv"><span class="k">Publicando</span><span class="v" id="publishState">não</span></div>
+
+            <div class="row mt-4">
+              <button class="btn btn-primary" id="btnStart">Iniciar captura</button>
+              <button class="btn btn-ghost" id="btnPublish" disabled>Republicar para o player</button>
+              <button class="btn btn-danger" id="btnStop" disabled>Parar captura</button>
+            </div>
+            <p class="tiny muted mt-4 mb-0">
+              A captura publicada dispara o início do relógio do cliente.
+              Só inicie quando o jogo estiver ligado e pronto para jogar.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Prévia</h2>
+              <span class="badge" id="previewBadge">sem sinal</span>
+            </div>
+            <div style="background: #000; border-radius: 12px; overflow: hidden; aspect-ratio: 16/9; display: grid; place-items: center;">
+              <video id="preview" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: contain;"></video>
+            </div>
+            <div class="row mt-4" style="gap: 10px;">
+              <span class="tiny muted">áudio</span>
+              <div class="meter"><span id="meterBar"></span></div>
+              <span class="tiny muted" id="meterText">—</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card-head"><h2>Fonte</h2><span class="badge" id="deviceCount">—</span></div>
+
+            <div class="stack-sm">
+              <div class="field">
+                <label>Fonte do jogo</label>
+                <div class="seg" id="sourceMode">
+                  <button type="button" class="seg-btn" data-mode="card">Placa de captura</button>
+                  <button type="button" class="seg-btn" data-mode="window">Janela do PC</button>
+                </div>
+                <p class="tiny muted mt-4 mb-0" id="sourceHint"></p>
+              </div>
+
+              <div class="stack-sm" id="cardFields">
+                <div class="field">
+                  <label for="videoSelect">Placa de captura (vídeo)</label>
+                  <select id="videoSelect"></select>
+                </div>
+                <div class="field">
+                  <label for="audioSelect">Áudio do jogo</label>
+                  <select id="audioSelect"></select>
+                </div>
+                <div class="grid-2">
+                  <div class="field">
+                    <label for="resSelect">Resolução</label>
+                    <select id="resSelect">
+                      <option value="1920x1080">1080p</option>
+                      <option value="1280x720">720p</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label for="fpsSelect">FPS</label>
+                    <select id="fpsSelect">
+                      <option value="60">60</option>
+                      <option value="30">30</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="field">
+                  <label for="bitrateSelect">Bitrate de vídeo</label>
+                  <select id="bitrateSelect">
+                    <option value="12000">12 Mbps (1080p60)</option>
+                    <option value="8000">8 Mbps (1080p30)</option>
+                    <option value="6000" selected>6 Mbps (720p60)</option>
+                    <option value="3500">3,5 Mbps (720p30)</option>
+                  </select>
+                </div>
+
+                <label class="row tiny muted" style="gap: 8px; margin-top: 4px;">
+                  <input type="checkbox" id="autoStart" checked style="width: auto;" />
+                  Iniciar captura sozinho quando uma sessão for paga
+                </label>
+              </div>
+
+              <div class="stack-sm hidden" id="windowFields">
+                <p class="tiny muted mb-0">
+                  Abra o jogo ou emulador em uma janela e escolha essa janela no seletor.
+                  Marque <strong>compartilhar áudio</strong> para o cliente ouvir o jogo.
+                  A janela precisa continuar visível durante a sessão.
+                </p>
+                <p class="tiny muted mb-0">
+                  A captura de janela exige um clique manual e não pode ser iniciada
+                  sozinha pelo servidor.
+                </p>
+              </div>
+
+              <button class="btn btn-ghost btn-block" id="btnDetect">Detectar dispositivos</button>
+              <button class="btn btn-ghost btn-block" id="btnWindow">Capturar janela do PC</button>
+            </div>
+          </div>
+
+          <div class="card tight">
+            <h3 class="mt-0" style="font-size: 14px;">Checklist</h3>
+            <p class="tiny muted mb-0" style="line-height: 1.7;">
+              A fonte está ligada e no jogo certo.<br />
+              Placa: HDMI do console na entrada e áudio aparecendo como dispositivo.<br />
+              Janela do PC: jogo aberto, sem minimizar, com áudio compartilhado.<br />
+              Este PC com upload livre (6–12 Mbps por sessão).<br />
+              Chrome/Edge com a aba sempre ativa (evite suspender o PC).
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mt-4">
+        <div class="card-head"><h2>Log</h2><button class="btn btn-ghost btn-sm" id="btnClearLog">limpar</button></div>
+        <div class="log" id="log"></div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="/assets/host.js"></script>
+</body>
+</html>

@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Painel — Xbox Play</title>
+  <meta name="theme-color" content="#06060a" />
+  <link rel="stylesheet" href="/assets/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap topbar-inner">
+      <a class="brand" href="/"><span class="brand-mark">▶</span>XBOX<span>PLAY</span></a>
+      <div class="badge" id="modeBadge"><span class="dot" id="modeDot"></span><span id="modeText">painel</span></div>
+      <nav>
+        <a href="/">Site</a>
+        <a href="/host">Host</a>
+        <a href="#" id="btnLogout" class="hidden">Sair</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="wrap page" style="max-width: 1180px;">
+    <div class="card" id="loginCard" style="max-width: 420px; margin: 40px auto;">
+      <div class="card-head"><h2>Entrar no painel</h2><span class="badge">admin</span></div>
+      <p class="muted tiny" style="margin-top: 0;">
+        A senha é impressa no terminal quando o servidor sobe (ou defina
+        <code>ADMIN_PASSWORD</code> no <code>.env</code>).
+      </p>
+      <form id="loginForm" class="stack">
+        <div class="field">
+          <label for="password">Senha</label>
+          <input id="password" type="password" autocomplete="current-password" placeholder="••••••••" />
+        </div>
+        <button class="btn btn-primary btn-block" type="submit" id="loginBtn">Entrar</button>
+      </form>
+    </div>
+
+    <div id="dashboard" class="hidden">
+      <div class="admin-grid">
+        <div class="stack">
+          <div class="card" id="sessionCard">
+            <div class="card-head">
+              <h2>Sessão atual</h2>
+              <span class="badge" id="sessionBadge"><span class="dot"></span><span id="sessionBadgeText">—</span></span>
+            </div>
+
+            <div class="grid-3">
+              <div class="stat">
+                <div class="k">Tempo restante</div>
+                <div class="v timer" id="sessionClock">—</div>
+              </div>
+              <div class="stat">
+                <div class="k">Pacote</div>
+                <div class="v" id="sessionHours">—</div>
+              </div>
+              <div class="stat">
+                <div class="k">Receita da sessão</div>
+                <div class="v" id="sessionRevenue">—</div>
+              </div>
+            </div>
+
+            <div class="grid-2 mt-4">
+              <div>
+                <div class="kv"><span class="k">Cliente</span><span class="v" id="sessionCustomer">—</span></div>
+                <div class="kv"><span class="k">WhatsApp</span><span class="v" id="sessionPhone">—</span></div>
+                <div class="kv"><span class="k">Início</span><span class="v" id="sessionStart">—</span></div>
+                <div class="kv"><span class="k">Fim</span><span class="v" id="sessionEnd">—</span></div>
+              </div>
+              <div>
+                <div class="kv"><span class="k">Player conectado</span><span class="v" id="sessionViewer">—</span></div>
+                <div class="kv"><span class="k">Transmissão pronta</span><span class="v" id="sessionStream">—</span></div>
+                <div class="kv"><span class="k">Próxima hora</span><span class="v" id="sessionNext">—</span></div>
+                <div class="kv"><span class="k">Status</span><span class="v" id="sessionStatus">—</span></div>
+              </div>
+            </div>
+
+            <div class="row mt-4" id="sessionActions">
+              <button class="btn btn-ghost btn-sm" data-action="extend" data-hours="1">+1h</button>
+              <button class="btn btn-ghost btn-sm" data-action="extend" data-hours="2">+2h</button>
+              <button class="btn btn-ghost btn-sm" data-action="extend" data-hours="3">+3h</button>
+              <span class="grow"></span>
+              <a class="btn btn-ghost btn-sm" id="btnOpenPlay" target="_blank" rel="noreferrer">abrir player</a>
+              <button class="btn btn-ghost btn-sm" data-action="end_session">encerrar</button>
+              <button class="btn btn-danger btn-sm" data-action="forfeit">desistir</button>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Fila</h2>
+              <div class="row" style="gap: 6px;">
+                <span class="badge" id="queueCount">0</span>
+                <button class="btn btn-ghost btn-sm" data-action="clear_queue">limpar</button>
+              </div>
+            </div>
+            <div id="queueList" class="list"></div>
+          </div>
+
+          <div class="card flush">
+            <div class="card-head" style="padding: 18px 20px 0;">
+              <h2>Pedidos</h2>
+              <button class="btn btn-ghost btn-sm" data-action="reload">atualizar</button>
+            </div>
+            <div class="table-wrap" style="max-height: 460px;">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Hora</th><th>Tipo</th><th>Horas</th><th>Valor</th>
+                    <th>Status</th><th>Cliente</th><th></th>
+                  </tr>
+                </thead>
+                <tbody id="ordersBody"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="stack">
+          <div class="card">
+            <div class="card-head"><h2>Máquina</h2><span class="badge" id="slotBadge">—</span></div>
+
+            <div class="kv"><span class="k">Host (captura)</span><span class="v" id="presenceHost">—</span></div>
+            <div class="kv"><span class="k">Player</span><span class="v" id="presenceViewer">—</span></div>
+            <div class="kv"><span class="k">Ponte de controle</span><span class="v" id="presenceBridge">—</span></div>
+            <div class="kv"><span class="k">Painéis abertos</span><span class="v" id="presenceAdmins">—</span></div>
+
+            <div class="divider"></div>
+
+            <div class="kv"><span class="k">Sessões</span><span class="v" id="counterSessions">—</span></div>
+            <div class="kv"><span class="k">Horas vendidas</span><span class="v" id="counterHours">—</span></div>
+            <div class="kv"><span class="k">Receita total</span><span class="v" id="counterRevenue">—</span></div>
+
+            <div class="divider"></div>
+
+            <div class="row">
+              <button class="btn btn-ghost btn-sm" id="btnRevealKey">ver chave do host</button>
+              <a class="btn btn-ghost btn-sm" href="/host" target="_blank" rel="noreferrer">abrir host</a>
+            </div>
+            <div class="pix-code mt-4 hidden" id="hostKeyBox"></div>
+
+            <div class="divider"></div>
+
+            <div class="grid-2">
+              <button class="btn btn-ghost btn-sm" data-action="xbox_power" data-mode="on">ligar Xbox</button>
+              <button class="btn btn-ghost btn-sm" data-action="xbox_power" data-mode="off">desligar Xbox</button>
+            </div>
+            <div class="row mt-4">
+              <button class="btn btn-danger btn-sm" data-action="reset_session_state">reset de emergência</button>
+              <button class="btn btn-ghost btn-sm" data-action="release_slot">liberar reserva</button>
+            </div>
+            <p class="tiny muted mt-4 mb-0" id="configLine">—</p>
+          </div>
+
+          <div class="card">
+            <div class="card-head">
+              <h2>Eventos</h2>
+              <span class="badge" id="eventsBadge">0</span>
+            </div>
+            <div class="log" id="eventLog"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script type="module" src="/assets/admin.js"></script>
+</body>
+</html>

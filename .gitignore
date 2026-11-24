@@ -1,0 +1,17 @@
+# Runtime / dados locais
+data/
+node_modules/
+*.log
+npm-debug.log*
+
+# Segredos locais
+.env
+.env.local
+
+# Sistema / editor
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Experimentos locais
+tools/gamepad-bridge/node_modules/

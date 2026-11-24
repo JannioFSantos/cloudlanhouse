@@ -1,0 +1,16 @@
+{
+  "name": "xbox-play",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Aluguel por hora do Xbox Series S via navegador (WebRTC + Pix) — sem dependências",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node --env-file-if-exists=.env src/server.js",
+    "dev": "node --env-file-if-exists=.env --watch src/server.js",
+    "test": "node --test",
+    "bridge": "node tools/gamepad-bridge/bridge.js"
+  }
+}
