@@ -152,6 +152,50 @@ seu-dominio.com {
 
 O Caddy já faz TLS e encaminha o upgrade do WebSocket.
 
+### Docker Compose (servidor + HTTPS)
+
+Sobe o servidor e o Caddy (certificado HTTPS automático) em uma VPS:
+
+```bash
+cp .env.example .env
+# edite o .env: DOMAIN=jogo.seudominio.com, ADMIN_PASSWORD, HOST_KEY e o pagamento
+docker compose up -d --build
+docker compose logs -f app      # mostra a senha do painel e a chave do host, se você não definiu
+```
+
+- O domínio precisa apontar para a VPS, com as portas **80** e **443** liberadas.
+- `BASE_URL` e `TRUST_PROXY` são definidos pelo próprio compose; o estado fica no volume `app-data`.
+- O **PC host continua no Windows**: abra `https://SEU-DOMINIO/host` no navegador dele e, para o controle, rode a ponte com `BRIDGE_URL=wss://SEU-DOMINIO/ws` e a mesma `HOST_KEY` no `.env` desse PC.
+- Atualizar: `git pull && docker compose up -d --build`.
+- Mercado Pago: use `MP_NOTIFICATION_URL=https://SEU-DOMINIO/api/webhooks/mercadopago`.
+
+Com TURN (clientes atrás de CGNAT/firewall rígido):
+
+```bash
+# no .env: TURN_URL=turn:SEU-DOMINIO:3478, TURN_USERNAME=..., TURN_CREDENTIAL=...
+docker compose --profile turn up -d --build
+```
+
+Libere também `3478/tcp`, `3478/udp` e `49160–49200/udp` no firewall da VPS.
+
+### Coolify
+
+O arquivo `docker-compose.coolify.yml` sobe só o servidor; o domínio, o HTTPS e o WebSocket ficam por conta do proxy do Coolify.
+
+1. No Coolify: **New Resource → Public/Private Repository** → escolha este repositório.
+2. **Build Pack: Docker Compose** e **Docker Compose Location: `/docker-compose.coolify.yml`**.
+3. Na aba do serviço `app`, confira o **domínio** (porta interna `8080`). O Coolify gera o HTTPS.
+4. Em **Environment Variables**, preencha o que for usar: `ADMIN_PASSWORD`, `HOST_KEY`, `PAYMENT_MODE`, `MP_ACCESS_TOKEN`, `MP_WEBHOOK_SECRET`, `MP_NOTIFICATION_URL` etc. Vazio = o servidor gera e guarda os segredos no volume.
+5. **Deploy**. Se não definiu senha e chave, veja-as em **Logs**.
+
+Observações:
+
+- `BASE_URL` vem do domínio configurado no Coolify (`SERVICE_URL_APP`); não precisa definir à mão.
+- Mantenha o volume `app-data`: nele ficam sessão, pedidos, fila e segredos. Sem ele, cada deploy zera tudo.
+- O **PC host continua no Windows**: abra `https://SEU-DOMINIO/host` e, para o controle, rode a ponte com `BRIDGE_URL=wss://SEU-DOMINIO/ws` e a mesma `HOST_KEY`.
+- TURN: o `coturn` precisa de rede `host` e de uma faixa de portas UDP, o que não combina com o proxy do Coolify. Para quem está atrás de CGNAT, rode o TURN em outro serviço/VPS e preencha `TURN_URL`, `TURN_USERNAME` e `TURN_CREDENTIAL`.
+- Mercado Pago: `MP_NOTIFICATION_URL=https://SEU-DOMINIO/api/webhooks/mercadopago`.
+
 ### Rede / TURN
 
 Para a maioria das redes domésticas, STUN público resolve. Se o host estiver atrás de CGNAT ou firewall rígido, configure um TURN (ex.: coturn) e preencha `TURN_URL`, `TURN_USERNAME` e `TURN_CREDENTIAL`.

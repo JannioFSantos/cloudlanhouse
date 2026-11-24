@@ -1,0 +1,78 @@
+# Xbox Play — servidor + HTTPS (Caddy) + TURN opcional
+#
+#   docker compose up -d --build                 # servidor + HTTPS
+#   docker compose --profile turn up -d --build  # + servidor TURN (coturn)
+#
+# Pré-requisitos: copie .env.example para .env e preencha DOMAIN (e o resto).
+# O domínio precisa apontar para este servidor e as portas 80/443 precisam
+# estar liberadas para o Caddy emitir o certificado.
+#
+# O PC host (host.html + ponte de controle) continua rodando no Windows; ele
+# só se conecta ao domínio público (https://DOMAIN/host, wss://DOMAIN/ws).
+
+services:
+  app:
+    build: .
+    image: xbox-play:latest
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      PORT: "8080"
+      DATA_DIR: /data
+      TRUST_PROXY: "1" # atrás do Caddy
+      BASE_URL: https://${DOMAIN:?defina DOMAIN no .env}
+    volumes:
+      - app-data:/data
+    expose:
+      - "8080"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:?defina DOMAIN no .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # HTTP/3
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+
+  # Opcional: relay WebRTC para clientes atrás de CGNAT/firewall rígido.
+  # Em .env, defina também TURN_URL=turn:SEU-DOMINIO:3478, TURN_USERNAME e
+  # TURN_CREDENTIAL (os mesmos valores usados aqui).
+  turn:
+    profiles: ["turn"]
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: host # o relay usa uma faixa grande de portas UDP
+    environment:
+      DOMAIN: ${DOMAIN:-}
+      TURN_USERNAME: ${TURN_USERNAME:-}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL:-}
+    # A checagem das variáveis roda dentro do contêiner (só quando o perfil
+    # "turn" é ativado), para não exigir credenciais de quem não usa TURN.
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        : "$${TURN_USERNAME:?defina TURN_USERNAME no .env}"
+        : "$${TURN_CREDENTIAL:?defina TURN_CREDENTIAL no .env}"
+        exec turnserver -n --log-file=stdout \
+          --realm="$${DOMAIN}" \
+          --lt-cred-mech \
+          --user="$${TURN_USERNAME}:$${TURN_CREDENTIAL}" \
+          --listening-port=3478 \
+          --min-port=49160 --max-port=49200 \
+          --fingerprint --no-multicast-peers --no-cli
+
+volumes:
+  app-data:
+  caddy-data:
+  caddy-config:

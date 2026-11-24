@@ -1,0 +1,52 @@
+# Xbox Play para o Coolify (Build Pack: "Docker Compose")
+#
+# No Coolify: Docker Compose Location = /docker-compose.coolify.yml
+#
+# - O domínio e o HTTPS são do próprio Coolify (proxy Traefik): não há Caddy aqui.
+# - SERVICE_FQDN_APP_8080 pede ao Coolify um domínio para a porta 8080 do serviço;
+#   você pode trocá-lo pelo seu na aba do serviço.
+# - As variáveis abaixo aparecem na aba "Environment Variables" do Coolify.
+#   Deixe em branco o que não usar: segredos vazios são gerados e guardados no volume.
+# - O estado (sessão, pedidos, fila, segredos) fica no volume /data. Não remova.
+# - O WebSocket (/ws) passa pelo proxy do Coolify sem configuração extra.
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    environment:
+      # Domínio público gerenciado pelo Coolify (porta interna 8080)
+      SERVICE_FQDN_APP_8080: ""
+      BASE_URL: ${SERVICE_URL_APP}
+      PORT: "8080"
+      DATA_DIR: /data
+      TRUST_PROXY: "1" # atrás do proxy do Coolify
+
+      # Segurança (vazio = gerado sozinho; veja em Logs ou no painel)
+      HOST_KEY: ${HOST_KEY:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+
+      # Pagamento: mock (teste) ou mercadopago (Pix real)
+      PAYMENT_MODE: ${PAYMENT_MODE:-mock}
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-}
+      MP_WEBHOOK_SECRET: ${MP_WEBHOOK_SECRET:-}
+      MP_NOTIFICATION_URL: ${MP_NOTIFICATION_URL:-}
+
+      # Regras de negócio (os padrões já são os combinados)
+      MAX_HOURS: ${MAX_HOURS:-4}
+      PAYMENT_TTL_SEC: ${PAYMENT_TTL_SEC:-900}
+      PROVISION_TIMEOUT_SEC: ${PROVISION_TIMEOUT_SEC:-180}
+      QUEUE_HOLD_SEC: ${QUEUE_HOLD_SEC:-300}
+
+      # Rede WebRTC (TURN opcional, necessário para clientes atrás de CGNAT)
+      STUN_URL: ${STUN_URL:-stun:stun.l.google.com:19302}
+      TURN_URL: ${TURN_URL:-}
+      TURN_USERNAME: ${TURN_USERNAME:-}
+      TURN_CREDENTIAL: ${TURN_CREDENTIAL:-}
+    volumes:
+      - app-data:/data
+    expose:
+      - "8080"
+
+volumes:
+  app-data:
