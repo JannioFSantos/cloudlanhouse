@@ -22,8 +22,7 @@ if errorlevel 1 (
 
 python -c "import vgamepad" >nul 2>nul
 if errorlevel 1 (
-  echo Primeira execucao: instalando o controle virtual ^(vgamepad + driver ViGEmBus^)...
-  echo Se o Windows pedir permissao, aceite. Pode ser necessario reiniciar o PC.
+  echo Primeira execucao: instalando a dependencia Python vgamepad...
   echo.
   python -m pip install -r tools\gamepad-bridge\requirements.txt
   if errorlevel 1 (

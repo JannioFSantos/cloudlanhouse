@@ -36,7 +36,7 @@ O vídeo **não passa pelo servidor**: ele vai direto do PC host para o navegado
 - PC host com Chrome/Edge atualizado
 - Para Xbox: placa de captura HDMI reconhecida como dispositivo de vídeo/áudio
 - Para PC: o jogo/emulador rodando em uma janela
-- Para PC (controle): Windows 10/11, **Python 3** e o driver **ViGEmBus** (instalados pelo `start-bridge.bat`)
+- Para PC (controle): Windows 10/11, **Python 3** e o driver **ViGEmBus**. O `start-bridge.bat` instala a dependência Python `vgamepad`; o driver pode precisar ser instalado separadamente.
 - HTTPS (ou `localhost`) — obrigatório para captura de tela, gamepad e WebSocket seguro em produção
 
 ## Rodar localmente
@@ -119,15 +119,22 @@ Para o cliente **jogar** (e não só assistir) um jogo no PC, rode a ponte no me
 Controle do cliente ──> navegador (play) ──WebSocket──> servidor ──> ponte ──> controle Xbox 360 virtual ──> jogo
 ```
 
-1. Suba o servidor (`start.bat`).
-2. Em outro terminal, dê dois cliques em `start-bridge.bat` (ou `npm run bridge`).
-   - Na **primeira vez** ele instala o `vgamepad` e o driver **ViGEmBus**. Aceite o pedido de permissão do Windows e, se pedir, reinicie o PC.
-3. Abra o jogo, abra o `/host` e escolha **Janela do PC**.
-4. O painel (`/admin`) mostra **Ponte de controle: online**.
+1. Confirme que o servidor está rodando. Se ele estiver no próprio PC, inicie-o com `start.bat`; se estiver na VPS, não precisa iniciar outro servidor no PC do jogo.
+2. Se o servidor estiver na VPS, crie ou atualize o `.env` na pasta do projeto no PC do jogo:
+
+   ```env
+   BRIDGE_URL=wss://cloudlanhouse.v6.rocks/ws
+   HOST_KEY=<a mesma chave configurada no servidor>
+   ```
+
+   A chave pode ser consultada no painel administrativo ou nas configurações do servidor. O `.env` é ignorado pelo Git; nunca coloque a chave no README ou em outro arquivo versionado.
+3. Inicie `start-bridge.bat` (ou `npm run bridge`) no PC do jogo. Na primeira execução, o script instala `vgamepad` se necessário. O driver **ViGEmBus** também precisa estar instalado; se estiver faltando, a ponte informa o erro e o link para instalá-lo. Reinicie o Windows se solicitado.
+4. Inicie o jogo depois da ponte, abra `https://cloudlanhouse.v6.rocks/host` e escolha **Janela do PC** para publicar a captura.
+5. O painel (`/admin`) mostra **Ponte de controle: online**.
 
 Detalhes:
 
-- A ponte lê a chave de `HOST_KEY` (no `.env`) ou de `data/host-key.txt`. Se o servidor estiver em outra máquina, defina `BRIDGE_URL=wss://seu-dominio.com/ws` e a mesma `HOST_KEY` no `.env` do PC do jogo.
+- A ponte lê a chave de `HOST_KEY` (no `.env`) ou de `data/host-key.txt`. Para a VPS atual, use `BRIDGE_URL=wss://cloudlanhouse.v6.rocks/ws` e configure no `.env` do PC do jogo a mesma `HOST_KEY` usada pelo servidor.
 - Os comandos só são aplicados **enquanto há sessão ativa**. Ao terminar a sessão, perder a conexão ou ficar 3 s sem sinal do cliente, todos os botões são soltos.
 - Funciona com controles em layout *standard* (Xbox, PS4/PS5 e a maioria dos controles no Chrome/Edge).
 - Para testar sem driver (ou fora do Windows): `npm run bridge:dry` mostra no terminal o que seria apertado.
@@ -165,7 +172,7 @@ docker compose logs -f app      # mostra a senha do painel e a chave do host, se
 
 - O domínio precisa apontar para a VPS, com as portas **80** e **443** liberadas.
 - `BASE_URL` e `TRUST_PROXY` são definidos pelo próprio compose; o estado fica no volume `app-data`.
-- O **PC host continua no Windows**: abra `https://SEU-DOMINIO/host` no navegador dele e, para o controle, rode a ponte com `BRIDGE_URL=wss://SEU-DOMINIO/ws` e a mesma `HOST_KEY` no `.env` desse PC.
+- O **PC host continua no Windows**: abra `https://SEU-DOMINIO/host` no navegador dele e, para o controle, configure `BRIDGE_URL=wss://SEU-DOMINIO/ws` e a mesma `HOST_KEY` no `.env` desse PC.
 - Atualizar: `git pull && docker compose up -d --build`.
 - Mercado Pago: use `MP_NOTIFICATION_URL=https://SEU-DOMINIO/api/webhooks/mercadopago`.
 
@@ -192,9 +199,9 @@ Observações:
 
 - `BASE_URL` e o domínio público estão definidos como `https://cloudlanhouse.v6.rocks` no Compose para manter os links, cookies seguros e URLs do WebSocket alinhados.
 - Mantenha o volume `app-data`: nele ficam sessão, pedidos, fila e segredos. Sem ele, cada deploy zera tudo.
-- O **PC host continua no Windows**: abra `https://SEU-DOMINIO/host` e, para o controle, rode a ponte com `BRIDGE_URL=wss://SEU-DOMINIO/ws` e a mesma `HOST_KEY`.
+- O **PC host continua no Windows**: abra `https://cloudlanhouse.v6.rocks/host` e, para o controle, configure `BRIDGE_URL=wss://cloudlanhouse.v6.rocks/ws` e a mesma `HOST_KEY`.
 - TURN: o `coturn` precisa de rede `host` e de uma faixa de portas UDP, o que não combina com o proxy do Coolify. Para quem está atrás de CGNAT, rode o TURN em outro serviço/VPS e preencha `TURN_URL`, `TURN_USERNAME` e `TURN_CREDENTIAL`.
-- Mercado Pago: `MP_NOTIFICATION_URL=https://SEU-DOMINIO/api/webhooks/mercadopago`.
+- Mercado Pago: `MP_NOTIFICATION_URL=https://cloudlanhouse.v6.rocks/api/webhooks/mercadopago`.
 
 ### Rede / TURN
 
