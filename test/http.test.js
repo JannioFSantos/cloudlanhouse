@@ -112,6 +112,7 @@ test.before(async () => {
       BASE_URL: BASE,
       DATA_DIR: dataDir,
       PAYMENT_MODE: 'mock',
+      REQUIRE_ONLINE: '0', // aqui não há host/ponte; a trava de venda tem teste próprio
       MP_ACCESS_TOKEN: '',
       ADMIN_PASSWORD,
       HOST_KEY,

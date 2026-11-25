@@ -41,6 +41,7 @@ import {
   resetRateLimit,
 } from './security.js';
 import { attachRealtime } from './realtime.js';
+import { assertOnline } from './availability.js';
 
 const app = createApp({ trustProxy: config.trustProxy });
 
@@ -115,6 +116,8 @@ app.delete('/api/queue/:id', (req, res) => {
 
 app.post('/api/orders', asyncH(async (req, res) => {
   limit(req, 'order:create', 12, 10 * 60_000);
+  // Não vende se o PC do jogo (host/ponte) está offline: o cliente pagaria sem poder jogar.
+  assertOnline();
   const { hours, name, phone, email, queueID } = req.body ?? {};
   const order = await createInitialOrder({ hours, name, phone, email, queueID });
   res.status(201).json(publicOrderView(order));

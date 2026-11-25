@@ -29,6 +29,8 @@ O vídeo **não passa pelo servidor**: ele vai direto do PC host para o navegado
 - Uma sessão por vez, com **fila de espera**.
 - O Pix reserva a máquina por **15 minutos**; sem pagamento, a reserva expira sozinha.
 - Extensão só é aceita com mais de **120 segundos** restantes.
+- **Vendas pausadas com o PC offline:** o site só vende quando o **host** (aba `/host`) e a **ponte de controle** estão conectados. Sem isso, o botão de pagar fica desabilitado e a API responde `503 machine_offline`.
+- **Transmissão que não sobe:** se o host não publicar o vídeo em `PROVISION_TIMEOUT_SEC` (180 s), a sessão é encerrada **sem iniciar o relógio**, a máquina volta a ficar livre e o Pix é **estornado automaticamente**. Se o estorno falhar, o pedido fica marcado para atenção no `/admin`, e o estorno pode ser feito pelo botão de reembolso.
 
 ## Requisitos
 
@@ -78,6 +80,9 @@ Copie `.env.example` para `.env` e ajuste.
 | `STUN_URL` / `TURN_URL` | Rede do WebRTC |
 | `TURN_USERNAME` / `TURN_CREDENTIAL` | Credenciais do TURN |
 | `TRUST_PROXY` | `1` atrás de Caddy/Nginx/Cloudflare |
+| `REQUIRE_ONLINE` | `1` (padrão): só vende com o PC do jogo online; `0` desliga a trava (desenvolvimento) |
+| `REQUIRE_BRIDGE` | `1` (padrão): exige também a ponte de controle; `0` exige só o host (Xbox com placa de captura) |
+| `PROVISION_TIMEOUT_SEC` | Segundos até estornar uma sessão cuja transmissão não subiu (padrão 180) |
 | `XBOX_POWER_ON_CMD` / `XBOX_POWER_OFF_CMD` | Comandos opcionais de energia |
 
 > **Segurança:** nunca comite `.env` nem a pasta `data/`. O `.gitignore` já cobre os dois.
@@ -213,7 +218,7 @@ Para a maioria das redes domésticas, STUN público resolve. Se o host estiver a
 node --test
 ```
 
-Cobrem preços, fluxo completo (pagamento, expiração, fila, desistência), integração HTTP + WebSocket (páginas, compra, handshake WebRTC, extensão, admin) e a ponte de controle (mapeamento, bloqueio fora de sessão, liberação de botões).
+Cobrem preços, fluxo completo (pagamento, expiração, fila, desistência), integração HTTP + WebSocket (páginas, compra, handshake WebRTC, extensão, admin), a ponte de controle (mapeamento, bloqueio fora de sessão, liberação de botões), a trava de venda com host/ponte offline e o estorno automático quando a transmissão não sobe.
 
 ## Limitações
 

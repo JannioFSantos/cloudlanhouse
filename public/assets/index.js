@@ -103,7 +103,8 @@ async function resumeOrder() {
   if (!id) return;
   try {
     const order = await api(`/api/orders/${encodeURIComponent(id)}`);
-    if (order.status === 'pending' || (order.status === 'paid' && order.session)) {
+    const refundedAtStart = order.status === 'refunded' && order.refundReason === 'provision_timeout';
+    if (order.status === 'pending' || (order.status === 'paid' && order.session) || refundedAtStart) {
       state.order = order;
     } else {
       localStorage.removeItem('xp_order');
@@ -118,6 +119,8 @@ async function resumeOrder() {
 /* ------------------------------------------------------------------ */
 
 function phase() {
+  // O host não subiu a transmissão a tempo: o pagamento é estornado sozinho.
+  if (state.order && (state.order.status === 'refunded' || state.order.refundPending)) return 'refunded';
   if (state.order && state.order.status === 'paid') return 'done';
   if (state.order && state.order.status === 'pending') return 'checkout';
   if (state.order && state.order.status === 'expired') return 'checkout';
@@ -140,6 +143,7 @@ function render() {
   else if (current === 'queue') app().innerHTML = renderQueue();
   else if (current === 'checkout') app().innerHTML = renderCheckout();
   else if (current === 'done') app().innerHTML = renderDone();
+  else if (current === 'refunded') app().innerHTML = renderRefunded();
   else app().innerHTML = renderBlocked();
 
   bind(current);
@@ -156,7 +160,21 @@ function renderTopBadge() {
   }
   if (slot.status === 'reserved') return { cls: 'purple', text: 'Pagamento em andamento' };
   if (slot.status === 'held') return { cls: 'purple', text: 'Fila liberada' };
+  if (isOffline()) return { cls: 'busy', text: 'offline no momento' };
   return { cls: 'live', text: 'livre agora' };
+}
+
+/** O PC do jogo (host/ponte) não está pronto: o servidor recusa novas compras. */
+function isOffline() {
+  const a = state.status?.availability;
+  return Boolean(a) && !a.ready;
+}
+
+function offlineMessage() {
+  const reason = state.status?.availability?.reason;
+  return reason === 'bridge_offline'
+    ? 'O controle remoto da máquina está offline.'
+    : 'O computador do jogo está offline.';
 }
 
 function updateTopBadge() {
@@ -176,12 +194,13 @@ function renderBuy() {
   const total = sum(state.hours);
   const name = esc(state.customer.name);
   const phone = esc(phoneMask(state.customer.phone));
+  const offline = isOffline();
 
   return `
     <div class="hero">
       <div>
-        <div class="eyebrow"><span class="dot ${heldByMe ? 'reserved' : 'live'}"></span>
-          ${heldByMe ? 'sua vez na fila' : 'disponível agora'}
+        <div class="eyebrow"><span class="dot ${offline ? 'busy' : heldByMe ? 'reserved' : 'live'}"></span>
+          ${offline ? 'indisponível no momento' : heldByMe ? 'sua vez na fila' : 'disponível agora'}
         </div>
         <h1>Jogue <em>Xbox Series S ou PC</em><br />direto no navegador.</h1>
         <p class="lede">
@@ -194,6 +213,13 @@ function renderBuy() {
           <div class="stat"><div class="k">Hora extra</div><div class="v">−R$ 1</div></div>
           <div class="stat"><div class="k">Limite</div><div class="v">4 horas</div></div>
         </div>
+
+        ${offline ? `
+          <div class="alert warn mt-4">
+            <strong>${offlineMessage()}</strong>
+            As vendas estão pausadas para você não pagar sem conseguir jogar.
+            Esta página atualiza sozinha quando voltar.
+          </div>` : ''}
 
         ${heldByMe ? `
           <div class="alert green mt-4">
@@ -211,7 +237,9 @@ function renderBuy() {
       <div class="card">
         <div class="card-head">
           <h2>Reservar agora</h2>
-          <span class="badge green"><span class="dot live"></span> livre</span>
+          ${offline
+            ? '<span class="badge warn"><span class="dot busy"></span> offline</span>'
+            : '<span class="badge green"><span class="dot live"></span> livre</span>'}
         </div>
 
         <form id="buyForm" class="stack">
@@ -248,8 +276,8 @@ function renderBuy() {
                    placeholder="(11) 99999-9999" value="${phone}" required />
           </div>
 
-          <button class="btn btn-primary btn-lg btn-block" type="submit" id="buyBtn" ${state.busy ? 'disabled' : ''}>
-            ${state.busy ? 'Gerando Pix…' : `Pagar ${brl(total)} com Pix`}
+          <button class="btn btn-primary btn-lg btn-block" type="submit" id="buyBtn" ${state.busy || offline ? 'disabled' : ''}>
+            ${state.busy ? 'Gerando Pix…' : offline ? 'Indisponível no momento' : `Pagar ${brl(total)} com Pix`}
           </button>
           <p class="tiny muted center mb-0">
             O Pix reserva o Xbox por 15 minutos. Se não for pago, a reserva expira sozinha.
@@ -483,6 +511,35 @@ function renderCheckout() {
     </div>`;
 }
 
+/* ------------------------------- refunded --------------------------- */
+
+function renderRefunded() {
+  const order = state.order;
+  const done = order?.status === 'refunded';
+  const failed = !done && order?.needsAttention;
+
+  return `
+    <div style="max-width: 680px; margin: 10px auto 0;">
+      <div class="card center">
+        <span class="badge ${done ? 'green' : 'warn'}">
+          ${done ? 'pagamento estornado' : 'estornando pagamento'}
+        </span>
+        <h1 style="font-size: clamp(28px, 5vw, 40px); margin: 18px 0 10px;">
+          Não conseguimos iniciar sua <em>sessão</em>.
+        </h1>
+        <p class="lede" style="margin: 0 auto 22px; text-align: center;">
+          A transmissão não ficou pronta a tempo, então o seu relógio nem chegou a começar.
+          ${done
+            ? `Devolvemos os <strong>${brl(order.amountCents)}</strong> para a conta que pagou o Pix.`
+            : failed
+              ? `O estorno automático falhou. Guarde o número do pedido <strong>${esc(order.id)}</strong> e chame o operador: ele devolve o valor manualmente.`
+              : 'Estamos devolvendo o valor automaticamente. Isso leva alguns instantes.'}
+        </p>
+        ${done ? '<button class="btn btn-primary btn-lg" id="backHome">Voltar ao início</button>' : ''}
+      </div>
+    </div>`;
+}
+
 /* -------------------------------- done ------------------------------ */
 
 function renderDone() {
@@ -547,7 +604,7 @@ function bind(current) {
         const ts = document.getElementById('totalSub');
         if (ts) ts.textContent = `${state.hours}h de jogo · Pix`;
         const bb = document.getElementById('buyBtn');
-        if (bb) bb.textContent = state.busy ? 'Gerando Pix…' : `Pagar ${brl(sum(state.hours))} com Pix`;
+        if (bb && !isOffline()) bb.textContent = state.busy ? 'Gerando Pix…' : `Pagar ${brl(sum(state.hours))} com Pix`;
       });
     });
 
@@ -622,6 +679,14 @@ function bind(current) {
     });
   }
 
+  if (current === 'refunded') {
+    document.getElementById('backHome')?.addEventListener('click', async () => {
+      clearOrder();
+      await refreshStatus();
+      render();
+    });
+  }
+
   if (current === 'done') {
     document.getElementById('refreshDone')?.addEventListener('click', async () => {
       await pollOrder();
@@ -639,6 +704,7 @@ function bind(current) {
 async function submitBuy(event) {
   event.preventDefault();
   if (state.busy) return;
+  if (isOffline()) return toast(`${offlineMessage()} Tente de novo em alguns minutos.`, 'warn');
 
   const name = document.getElementById('buyName')?.value ?? '';
   const phone = document.getElementById('buyPhone')?.value ?? '';
@@ -669,7 +735,8 @@ async function submitBuy(event) {
     setServerNow(order.serverNow ?? serverNow());
     toast('Pix gerado. Finalize o pagamento.', 'green');
   } catch (err) {
-    toast(err.message, err.code === 'slot_busy' || err.code === 'slot_reserved' ? 'warn' : 'danger');
+    const soft = ['slot_busy', 'slot_reserved', 'machine_offline'].includes(err.code);
+    toast(err.message, soft ? 'warn' : 'danger');
     await refreshStatus();
   } finally {
     state.busy = false;
@@ -747,6 +814,7 @@ async function poll() {
     else if (current === 'queue') await pollQueue();
     else if (current === 'buy' || current === 'blocked') await refreshStatus();
     else if (current === 'done') await pollOrder();
+    else if (current === 'refunded' && state.order?.status !== 'refunded') await pollOrder();
   } catch {
     /* rede instável: tenta no próximo ciclo */
   } finally {
@@ -764,11 +832,13 @@ async function refreshStatus() {
     sessionStatus: status.session?.status,
     endsAt: status.session?.endsAt,
     waiting: status.queue?.waiting,
+    ready: status.availability?.ready,
+    reason: status.availability?.reason,
   });
 
   if (sig !== state.lastStatusSig) {
     state.lastStatusSig = sig;
-    if (phase() !== 'checkout' && phase() !== 'done') render();
+    if (!['checkout', 'done', 'refunded'].includes(phase())) render();
     else updateTopBadge();
     updateClocks();
   }
@@ -817,6 +887,16 @@ async function pollOrder() {
     setServerNow(order.serverNow ?? serverNow());
     const before = state.order?.status;
     state.order = order;
+
+    if (order.status === 'refunded' || order.refundPending) {
+      localStorage.setItem('xp_order', order.id);
+      const sig = `refund:${order.status}:${order.refundPending}:${order.needsAttention}`;
+      if (sig !== state.lastOrderSig) {
+        state.lastOrderSig = sig;
+        render();
+      }
+      return;
+    }
 
     if (order.status === 'paid') {
       localStorage.setItem('xp_order', order.id);

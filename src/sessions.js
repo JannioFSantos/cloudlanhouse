@@ -4,6 +4,7 @@ import { bus } from './bus.js';
 import { ApiError, bad, conflict, notFound } from './errors.js';
 import { id, now, phoneDigits } from './util.js';
 import { HOURLY_CENTS, MAX_HOURS, quote, nextHourPrice } from './pricing.js';
+import { availability } from './availability.js';
 
 export const ACTIVE_STATUSES = ['provisioning', 'active'];
 export const OPEN_ORDER_STATUSES = ['pending'];
@@ -106,6 +107,7 @@ export function publicStatus(t = now(), state = store.data) {
       maxHours: MAX_HOURS,
     },
     paymentMode: config.paymentMode,
+    availability: availability(),
   };
 }
 
@@ -319,7 +321,7 @@ export function tick(t = now()) {
 
   if (!needsWarning && !needsExpiry && !needsTimeout && !expiredOrdersPending
     && !heldExpired && !(slotOpen && someoneWaiting)) {
-    return { warnings: [], expiredOrders: [], sessionEnded: null, autoStarted: null };
+    return { warnings: [], expiredOrders: [], sessionEnded: null, provisionFailed: null };
   }
 
   let changed = false;
@@ -327,7 +329,8 @@ export function tick(t = now()) {
   const expiredOrders = [];
   let notifyQueue = false;
   let sessionEnded = null;
-  let autoStarted = null;
+  let provisionFailed = null;
+  const refundOrders = [];
 
   store.mutate((state) => {
     const s = state.session;
@@ -360,18 +363,29 @@ export function tick(t = now()) {
       }
     }
 
-    // Provisionamento que nunca ficou pronto: o tempo começa mesmo assim,
-    // para o slot não ficar preso para sempre.
+    // Provisionamento que nunca ficou pronto (host sem transmitir): o cliente
+    // não chegou a jogar. O relógio NÃO começa; a sessão é encerrada, o slot
+    // volta a ficar livre e o pagamento é estornado automaticamente.
     if (s && s.status === 'provisioning'
       && t - s.createdAt > config.provisionTimeoutSec * 1000) {
-      s.startedAt = t;
-      s.endsAt = t + s.hoursPurchased * 3600_000;
-      s.status = 'active';
-      pushEvent(state, 'session.start_timeout', {
+      s.status = 'ended';
+      s.endedReason = 'provision_timeout';
+      s.endedAt = t;
+      s.streamReady = false;
+      pushEvent(state, 'session.provision_failed', {
         sessionID: s.id,
         timeoutSec: config.provisionTimeoutSec,
       }, 'warn');
-      autoStarted = s;
+
+      const initial = state.orders.find(
+        (o) => o.id === s.orderIDs[0] && o.status === 'paid',
+      );
+      if (initial) {
+        initial.refundPending = true;
+        initial.refundReason = 'provision_timeout';
+        refundOrders.push(initial);
+      }
+      provisionFailed = s;
       changed = true;
     }
 
@@ -416,8 +430,11 @@ export function tick(t = now()) {
   for (const o of expiredOrders) bus.emit('order:expired', { order: o });
   if (notifyQueue) bus.emit('queue:notified', { entry: notifyQueue });
   if (sessionEnded) bus.emit('session:ended', { session: sessionEnded, reason: 'time_up' });
-  if (autoStarted) bus.emit('session:auto_started', { session: autoStarted });
+  if (provisionFailed) {
+    bus.emit('session:ended', { session: provisionFailed, reason: 'provision_timeout' });
+  }
+  for (const order of refundOrders) bus.emit('order:refund_needed', { order });
   if (changed) bus.emit('state:changed');
 
-  return { warnings, expiredOrders, sessionEnded, autoStarted };
+  return { warnings, expiredOrders, sessionEnded, provisionFailed };
 }

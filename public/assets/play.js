@@ -367,6 +367,7 @@ function showEnded(reason) {
     time_up: ['Tempo esgotado', 'Seu tempo de jogo terminou. O Xbox já está livre para outra pessoa.'],
     forfeited: ['Você desistiu', 'A sessão foi encerrada na hora, sem devolução, como combinado nas regras.'],
     refunded: ['Sessão encerrada', 'O pagamento foi estornado e a sessão encerrada pelo operador.'],
+    provision_timeout: ['Não conseguimos iniciar', 'A transmissão não ficou pronta a tempo e seu relógio nem começou. O pagamento é estornado automaticamente.'],
     admin: ['Sessão encerrada', 'O operador encerrou esta sessão.'],
     admin_reset: ['Sessão encerrada', 'O operador reiniciou o estado da máquina.'],
   };

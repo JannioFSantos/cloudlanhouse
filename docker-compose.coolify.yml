@@ -37,6 +37,10 @@ services:
       PROVISION_TIMEOUT_SEC: ${PROVISION_TIMEOUT_SEC:-180}
       QUEUE_HOLD_SEC: ${QUEUE_HOLD_SEC:-300}
 
+      # Só vende com o PC do jogo online (host + ponte de controle)
+      REQUIRE_ONLINE: ${REQUIRE_ONLINE:-1}
+      REQUIRE_BRIDGE: ${REQUIRE_BRIDGE:-1}
+
       # Rede WebRTC (TURN opcional, necessário para clientes atrás de CGNAT)
       STUN_URL: ${STUN_URL:-stun:stun.l.google.com:19302}
       TURN_URL: ${TURN_URL:-}

@@ -52,6 +52,12 @@ export const config = {
   provisionTimeoutSec: num('PROVISION_TIMEOUT_SEC', 180),
   queueHoldSec: num('QUEUE_HOLD_SEC', 300),
 
+  // Só vende quando o PC do jogo está pronto (host conectado e, por padrão,
+  // ponte de controle). REQUIRE_ONLINE=0 desliga a trava (desenvolvimento);
+  // REQUIRE_BRIDGE=0 exige só o host (ex.: Xbox com placa de captura).
+  requireOnline: env('REQUIRE_ONLINE', '1') !== '0',
+  requireBridge: env('REQUIRE_BRIDGE', '1') !== '0',
+
   xboxPowerOnCmd: env('XBOX_POWER_ON_CMD'),
   xboxPowerOffCmd: env('XBOX_POWER_OFF_CMD'),
 

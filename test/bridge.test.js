@@ -162,6 +162,7 @@ test.before(async () => {
       BASE_URL: BASE,
       DATA_DIR: dataDir,
       PAYMENT_MODE: 'mock',
+      REQUIRE_ONLINE: '0', // a ponte só conecta depois da compra neste teste
       MP_ACCESS_TOKEN: '',
       ADMIN_PASSWORD: 'senha-bridge-e2e',
       HOST_KEY,

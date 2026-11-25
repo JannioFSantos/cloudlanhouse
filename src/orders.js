@@ -2,7 +2,7 @@ import { config } from './config.js';
 import { store, pushEvent } from './state.js';
 import { bus } from './bus.js';
 import { bad, conflict, notFound } from './errors.js';
-import { id, now, token, brl } from './util.js';
+import { id, now, token, brl, log } from './util.js';
 import { quote, nextHourPrice, MAX_HOURS } from './pricing.js';
 import {
   extendSessionWithOrder,
@@ -12,7 +12,7 @@ import {
   validateCustomer,
 } from './sessions.js';
 import { assertSlotAvailableFor } from './queue.js';
-import { createPixCharge, getPayment } from './payments.js';
+import { createPixCharge, getPayment, refundPayment } from './payments.js';
 
 export function findOrder(orderID, state = store.data) {
   return state.orders.find((o) => o.id === orderID) ?? null;
@@ -233,6 +233,81 @@ export function markOrderPaid(orderID, meta = {}) {
   return result.order;
 }
 
+/* ------------------------------------------------------------------ */
+/* Estorno                                                            */
+/* ------------------------------------------------------------------ */
+
+const refunding = new Set();
+
+/**
+ * Estorna um pedido pago (total) e registra no estado. Idempotente: um
+ * pedido já estornado, ou com estorno em andamento, não é estornado de novo.
+ */
+export async function refundOrder(orderID, { reason = 'manual', by = 'system' } = {}) {
+  const order = requireOrder(orderID);
+  if (order.status === 'refunded') return order;
+  if (order.status !== 'paid') throw conflict('Pedido não está pago.', 'not_paid');
+  if (!order.mpPaymentId) throw conflict('Pedido sem pagamento para estornar.', 'no_payment');
+  if (refunding.has(order.id)) return order;
+
+  refunding.add(order.id);
+  try {
+    await refundPayment(order.mpPaymentId, order.amountCents);
+
+    const t = now();
+    store.mutate((state) => {
+      const o = state.orders.find((x) => x.id === order.id);
+      if (!o || o.status === 'refunded') return;
+      o.status = 'refunded';
+      o.refundedAt = t;
+      o.refundReason = reason;
+      o.refundPending = false;
+      o.needsAttention = false;
+      o.attentionReason = null;
+
+      // O que foi estornado não conta como venda.
+      state.counters.revenueCents = Math.max(0, state.counters.revenueCents - o.amountCents);
+      state.counters.hoursSold = Math.max(0, state.counters.hoursSold - o.hours);
+
+      pushEvent(state, 'order.refunded', {
+        orderID: o.id,
+        amountCents: o.amountCents,
+        reason,
+        by,
+      }, 'warn');
+    });
+    bus.emit('state:changed');
+    return findOrder(order.id);
+  } finally {
+    refunding.delete(order.id);
+  }
+}
+
+/** Estorno automático (ex.: o host não subiu a transmissão a tempo). */
+async function autoRefund(orderID, reason) {
+  try {
+    await refundOrder(orderID, { reason, by: 'system' });
+  } catch (err) {
+    log('[refund] falha no estorno automático', orderID, err.message);
+    store.mutate((state) => {
+      const o = state.orders.find((x) => x.id === orderID);
+      if (!o) return;
+      o.needsAttention = true;
+      o.attentionReason = 'estorno_automatico_falhou';
+      pushEvent(state, 'order.refund_failed', {
+        orderID,
+        reason,
+        message: err.message,
+      }, 'error');
+    });
+    bus.emit('state:changed');
+  }
+}
+
+bus.on('order:refund_needed', ({ order }) => {
+  autoRefund(order.id, order.refundReason ?? 'automatic');
+});
+
 /** Consulta o MP quando o webhook não chega (localhost, sem túnel). */
 export async function refreshOrder(orderID) {
   const order = requireOrder(orderID);
@@ -288,6 +363,7 @@ export function orderView(order, { withToken = true } = {}) {
 
   const paid = order.status === 'paid';
   const isLive = session && ['provisioning', 'active'].includes(session.status);
+  const failedToStart = session?.endedReason === 'provision_timeout';
 
   let priceNext = null;
   if (order.kind === 'extension') priceNext = order.amountCents;
@@ -305,6 +381,8 @@ export function orderView(order, { withToken = true } = {}) {
     expiresInMs: Math.max(0, order.expiresAt - t),
     paid,
     needsAttention: Boolean(order.needsAttention),
+    refundPending: Boolean(order.refundPending) && order.status !== 'refunded',
+    refundReason: order.refundReason ?? null,
     qrCode: order.status === 'pending' ? order.qrCode : null,
     qrCodeBase64: order.status === 'pending' ? order.qrCodeBase64 : null,
     ticketUrl: order.status === 'pending' ? order.ticketUrl : null,
@@ -318,6 +396,7 @@ export function orderView(order, { withToken = true } = {}) {
             ? `${config.baseUrl}/play.html?s=${encodeURIComponent(session.token)}`
             : null,
           remainingMs: remainingMs(session, t),
+          failedToStart,
         }
       : null,
   };

@@ -3,6 +3,7 @@ import { config } from './config.js';
 import { store } from './state.js';
 import { bus } from './bus.js';
 import { now, safeEqual } from './util.js';
+import { setOnline } from './availability.js';
 import {
   ACTIVE_STATUSES,
   markStreamReady,
@@ -154,10 +155,17 @@ export function attachRealtime(server) {
       clearTimeout(helloTimer);
       if (presence.host === ws) {
         presence.host = null;
+        setOnline('host', false);
         relayToViewer({ type: 'host:offline' });
         broadcastToAdmins({ type: 'presence', presence: presenceSnapshot() });
+        broadcastState(true);
       }
-      if (presence.bridge === ws) presence.bridge = null;
+      if (presence.bridge === ws) {
+        presence.bridge = null;
+        setOnline('bridge', false);
+        broadcastToAdmins({ type: 'presence', presence: presenceSnapshot() });
+        broadcastState(true);
+      }
       if (presence.viewer === ws) {
         presence.viewer = null;
         store.mutate((state) => {
@@ -290,6 +298,7 @@ export function attachRealtime(server) {
           }
           client.meta.role = 'host';
           presence.host = client;
+          setOnline('host', true);
 
           send(client, {
             type: 'hello',
@@ -304,6 +313,7 @@ export function attachRealtime(server) {
             send(client, { type: 'viewer:joined', at: now() });
           }
           broadcastToAdmins({ type: 'presence', presence: presenceSnapshot() });
+          broadcastState(true);
           return;
         }
 
@@ -313,8 +323,10 @@ export function attachRealtime(server) {
           }
           client.meta.role = 'bridge';
           presence.bridge = client;
+          setOnline('bridge', true);
           send(client, { type: 'hello', ok: true, role: 'bridge', state: publicState() });
           broadcastToAdmins({ type: 'presence', presence: presenceSnapshot() });
+          broadcastState(true);
           return;
         }
 
