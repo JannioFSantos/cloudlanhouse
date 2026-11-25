@@ -158,7 +158,11 @@ test('serve as páginas e o css', async () => {
 
   const play = await fetch(`${BASE}/play`);
   assert.equal(play.status, 200);
-  assert.match(await play.text(), /player-shell/);
+  const playHtml = await play.text();
+  assert.match(playHtml, /player-shell/);
+  assert.match(playHtml, /id="touchControls"/);
+  assert.match(playHtml, /data-touch-stick="0"/);
+  assert.match(playHtml, /data-touch-button="0"/);
 });
 
 test('API pública responde status e preços', async () => {

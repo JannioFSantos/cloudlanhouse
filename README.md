@@ -1,6 +1,6 @@
 # Xbox Play / Cloud Lan House
 
-Aluguel de Xbox (ou de um jogo rodando no próprio PC) por tempo, direto no navegador. O cliente paga via Pix, abre um link e joga com o controle que já tem — sem instalar nada.
+Aluguel de Xbox (ou de um jogo rodando no próprio PC) por tempo, direto no navegador. O cliente paga via Pix, abre um link e joga com controle USB/Bluetooth ou, em jogos no PC, com comandos na tela em celulares e tablets — sem instalar nada.
 
 > **Status:** projeto funcional em modo de teste (pagamento mock). Jogos **no PC** já têm controle via a [ponte de controle](#controle-no-pc-ponte). A injeção de controle no **Xbox físico** ainda não está implementada; veja [Limitações](#limitações).
 
@@ -14,7 +14,7 @@ Jogo no PC (janela) ─────────────┘
 
 - **Servidor** (`Node.js`, sem dependências): páginas, API, WebSocket de sinalização, fila, pedidos, pagamento Pix e o **relógio autoritativo**.
 - **Host** (`/host`): captura o vídeo do Xbox pela placa HDMI **ou** uma janela do PC (Steam, emulador, qualquer app) e publica via WebRTC.
-- **Player** (`/play.html?s=...`): recebe o vídeo/áudio por WebRTC, mostra o tempo restante e permite estender ou desistir.
+- **Player** (`/play.html?s=...`): recebe o vídeo/áudio por WebRTC, mostra o tempo restante e permite estender ou desistir. Em aparelhos com tela sensível ao toque, exibe alavancas e botões virtuais quando o vídeo começa; eles enviam comandos pelo mesmo fluxo da ponte de controle.
 - **Painel** (`/admin`): sessão atual, fila, pedidos, eventos, presença de host/player e ações administrativas.
 
 O vídeo **não passa pelo servidor**: ele vai direto do PC host para o navegador do cliente (P2P). O servidor só troca SDP/ICE e controla o tempo. Se a rede impedir o P2P, configure um **TURN**.
@@ -39,6 +39,7 @@ O vídeo **não passa pelo servidor**: ele vai direto do PC host para o navegado
 - Para Xbox: placa de captura HDMI reconhecida como dispositivo de vídeo/áudio
 - Para PC: o jogo/emulador rodando em uma janela
 - Para PC (controle): Windows 10/11, **Python 3** e o driver **ViGEmBus**. O `start-bridge.bat` instala a dependência Python `vgamepad`; o driver pode precisar ser instalado separadamente.
+- Para jogar por toque: celular ou tablet com navegador compatível. Os comandos virtuais controlam jogos no PC pela ponte; a injeção de comandos no Xbox físico ainda não está implementada.
 - HTTPS (ou `localhost`) — obrigatório para captura de tela, gamepad e WebSocket seguro em produção
 
 ## Rodar localmente

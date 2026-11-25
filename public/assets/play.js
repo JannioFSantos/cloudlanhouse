@@ -32,6 +32,10 @@ let warned = new Set();
 let lastInputKey = '';
 let lastInputAt = 0;
 let uiHideTimer = null;
+const touchAxes = [0, 0, 0, 0];
+const touchPointers = new Map();
+const stickPointers = new Map();
+const touchButtons = new Set();
 
 if (!token) {
   fatal('Link incompleto', 'Abra o link que você recebeu depois do pagamento para entrar na sessão.');
@@ -68,6 +72,7 @@ async function boot() {
   connect();
   setInterval(tick, 500);
   setInterval(backupRefresh, 20_000);
+  setupTouchControls();
   setupGamepad();
 }
 
@@ -358,6 +363,8 @@ function hideOverlay() {
 
 function showEnded(reason) {
   if (ended) return;
+  releaseTouchControls();
+  $('shell').classList.remove('touch-ready');
   ended = true;
   closePeer();
   $('video').srcObject = null;
@@ -475,6 +482,7 @@ function bindUI() {
 
   const video = $('video');
   video.addEventListener('playing', () => {
+    $('shell').classList.add('touch-ready');
     if (!ended) hideOverlay();
   });
   video.addEventListener('click', () => {
@@ -787,6 +795,146 @@ async function updateStats() {
 /* Controle (gamepad)                                                 */
 /* ------------------------------------------------------------------ */
 
+function touchPayload() {
+  const buttons = Array.from({ length: 17 }, (_, index) => {
+    const pressed = touchButtons.has(index);
+    return [pressed ? 1 : 0, pressed ? 1 : 0];
+  });
+  return {
+    id: 'Touchscreen Controller',
+    axes: touchAxes.map((value) => Math.round(value * 1000) / 1000),
+    buttons,
+  };
+}
+
+function sendInput(payload) {
+  if (ended || !ws?.ready) return;
+  const key = JSON.stringify(payload.axes) + JSON.stringify(payload.buttons);
+  const nowTs = Date.now();
+  if (key === lastInputKey && nowTs - lastInputAt < 1000) return;
+  lastInputKey = key;
+  lastInputAt = nowTs;
+  ws.send({ type: 'input', payload });
+}
+
+function releaseTouchControls(sendNeutral = true) {
+  for (const [pointerId, stick] of stickPointers) {
+    const knob = stick.element.querySelector('.touch-stick-knob');
+    knob.style.transform = 'translate(-50%, -50%)';
+    touchAxes[stick.axis] = 0;
+    touchAxes[stick.axis + 1] = 0;
+    stickPointers.delete(pointerId);
+  }
+  for (const button of touchButtons) {
+    document.querySelector(`[data-touch-button="${button}"]`)?.classList.remove('is-pressed');
+  }
+  touchButtons.clear();
+  touchPointers.clear();
+  if (sendNeutral) sendInput(touchPayload());
+}
+
+function updateStick(event, stick) {
+  const rect = stick.element.getBoundingClientRect();
+  const radius = Math.max(1, Math.min(rect.width, rect.height) * 0.5);
+  const knobRadius = radius * 0.42;
+  let x = (event.clientX - (rect.left + rect.width / 2)) / (radius - knobRadius);
+  let y = (event.clientY - (rect.top + rect.height / 2)) / (radius - knobRadius);
+  const magnitude = Math.hypot(x, y);
+  if (magnitude > 1) {
+    x /= magnitude;
+    y /= magnitude;
+  }
+  if (Math.hypot(x, y) < 0.12) x = y = 0;
+
+  touchAxes[stick.axis] = x;
+  touchAxes[stick.axis + 1] = y;
+  stick.knob.style.transform = `translate(calc(-50% + ${x * (radius - knobRadius)}px), calc(-50% + ${y * (radius - knobRadius)}px))`;
+}
+
+function setupTouchControls() {
+  const supported = navigator.maxTouchPoints > 0
+    || window.matchMedia?.('(pointer: coarse)').matches;
+  if (!supported) return;
+
+  const shell = $('shell');
+  const controls = $('touchControls');
+  controls.hidden = false;
+  shell.classList.add('touch-device');
+
+  controls.querySelectorAll('[data-touch-stick]').forEach((element) => {
+    const axis = Number(element.dataset.touchStick);
+    const knob = element.querySelector('.touch-stick-knob');
+
+    element.addEventListener('pointerdown', (event) => {
+      if (ended || shell.classList.contains('has-gamepad') || stickPointers.size > 1) return;
+      if ([...stickPointers.values()].some((stick) => stick.element === element)) return;
+      event.preventDefault();
+      element.setPointerCapture(event.pointerId);
+      const stick = { element, knob, axis };
+      stickPointers.set(event.pointerId, stick);
+      updateStick(event, stick);
+      sendInput(touchPayload());
+    });
+
+    element.addEventListener('pointermove', (event) => {
+      const stick = stickPointers.get(event.pointerId);
+      if (stick?.element === element) updateStick(event, stick);
+    });
+
+    const release = (event) => {
+      const stick = stickPointers.get(event.pointerId);
+      if (!stick || stick.element !== element) return;
+      stickPointers.delete(event.pointerId);
+      touchAxes[axis] = 0;
+      touchAxes[axis + 1] = 0;
+      knob.style.transform = 'translate(-50%, -50%)';
+      if (stickPointers.size === 0 && touchPointers.size === 0) sendInput(touchPayload());
+    };
+    element.addEventListener('pointerup', release);
+    element.addEventListener('pointercancel', release);
+    element.addEventListener('lostpointercapture', release);
+  });
+
+  controls.querySelectorAll('[data-touch-button]').forEach((element) => {
+    const index = Number(element.dataset.touchButton);
+    element.addEventListener('pointerdown', (event) => {
+      if (ended || shell.classList.contains('has-gamepad')) return;
+      event.preventDefault();
+      element.setPointerCapture(event.pointerId);
+      touchPointers.set(event.pointerId, { index, element });
+      touchButtons.add(index);
+      element.classList.add('is-pressed');
+      sendInput(touchPayload());
+    });
+
+    const release = (event) => {
+      const pressed = touchPointers.get(event.pointerId);
+      if (!pressed || pressed.element !== element) return;
+      touchPointers.delete(event.pointerId);
+      if (![...touchPointers.values()].some((button) => button.index === index)) {
+        touchButtons.delete(index);
+        element.classList.remove('is-pressed');
+      }
+      if (stickPointers.size === 0 && touchPointers.size === 0) sendInput(touchPayload());
+    };
+    element.addEventListener('pointerup', release);
+    element.addEventListener('pointercancel', release);
+    element.addEventListener('lostpointercapture', release);
+  });
+
+  setInterval(() => {
+    if (!ended && !shell.classList.contains('has-gamepad')
+      && (stickPointers.size > 0 || touchPointers.size > 0)) {
+      sendInput(touchPayload());
+    }
+  }, 50);
+
+  window.addEventListener('blur', () => releaseTouchControls());
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) releaseTouchControls();
+  });
+}
+
 function activeGamepad() {
   const pads = navigator.getGamepads?.() ?? [];
   return Array.from(pads).find((p) => p && p.connected) ?? null;
@@ -794,18 +942,30 @@ function activeGamepad() {
 
 function setupGamepad() {
   window.addEventListener('gamepadconnected', (event) => {
+    $('shell').classList.add('has-gamepad');
+    releaseTouchControls(false);
     $('padPill').classList.remove('hidden');
     $('padText').textContent = event.gamepad.id.split('(')[0].trim().slice(0, 28);
     toast('Controle conectado.', 'green', 3000);
   });
 
   window.addEventListener('gamepaddisconnected', () => {
-    if (!activeGamepad()) $('padPill').classList.add('hidden');
+    if (!activeGamepad()) {
+      $('shell').classList.remove('has-gamepad');
+      $('padPill').classList.add('hidden');
+    }
   });
 
+  $('shell').classList.toggle('has-gamepad', Boolean(activeGamepad()));
   setInterval(() => {
     if (ended || !ws?.ready) return;
     const pad = activeGamepad();
+    const shell = $('shell');
+    const connected = Boolean(pad);
+    if (connected !== shell.classList.contains('has-gamepad')) {
+      shell.classList.toggle('has-gamepad', connected);
+      if (connected) releaseTouchControls(false);
+    }
     if (!pad) return;
 
     if ($('padPill').classList.contains('hidden')) {
@@ -822,13 +982,7 @@ function setupGamepad() {
       ]),
     };
 
-    const key = JSON.stringify(payload.axes) + JSON.stringify(payload.buttons);
-    const nowTs = Date.now();
-    if (key === lastInputKey && nowTs - lastInputAt < 1000) return;
-
-    lastInputKey = key;
-    lastInputAt = nowTs;
-    ws.send({ type: 'input', payload });
+    sendInput(payload);
   }, 50);
 }
 
