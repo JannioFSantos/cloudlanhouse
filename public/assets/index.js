@@ -104,7 +104,9 @@ async function resumeOrder() {
   try {
     const order = await api(`/api/orders/${encodeURIComponent(id)}`);
     const refundedAtStart = order.status === 'refunded' && order.refundReason === 'provision_timeout';
-    if (order.status === 'pending' || (order.status === 'paid' && order.session) || refundedAtStart) {
+    if (order.status === 'pending' || refundedAtStart) {
+      state.order = order;
+    } else if (order.status === 'paid' && isSessionLive(order.session)) {
       state.order = order;
     } else {
       localStorage.removeItem('xp_order');
@@ -121,7 +123,7 @@ async function resumeOrder() {
 function phase() {
   // O host não subiu a transmissão a tempo: o pagamento é estornado sozinho.
   if (state.order && (state.order.status === 'refunded' || state.order.refundPending)) return 'refunded';
-  if (state.order && state.order.status === 'paid') return 'done';
+  if (state.order?.status === 'paid' && isSessionLive(state.order.session)) return 'done';
   if (state.order && state.order.status === 'pending') return 'checkout';
   if (state.order && state.order.status === 'expired') return 'checkout';
 
@@ -133,6 +135,10 @@ function phase() {
   if (slot === 'free') return 'buy';
   if (slot === 'held') return entry ? 'buy' : 'blocked';
   return 'blocked';
+}
+
+function isSessionLive(session) {
+  return ['provisioning', 'active'].includes(session?.status);
 }
 
 function render() {
@@ -887,6 +893,13 @@ async function pollOrder() {
     setServerNow(order.serverNow ?? serverNow());
     const before = state.order?.status;
     state.order = order;
+
+    if (order.status === 'paid' && !isSessionLive(order.session)) {
+      clearOrder();
+      await refreshStatus();
+      render();
+      return;
+    }
 
     if (order.status === 'refunded' || order.refundPending) {
       localStorage.setItem('xp_order', order.id);

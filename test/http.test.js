@@ -292,6 +292,13 @@ test('desistir encerra e avisa o player', async () => {
 
   const after = await api('/api/status');
   assert.equal(after.data.slot.status, 'free');
+
+  const nextOrder = await api('/api/orders', {
+    method: 'POST',
+    body: { hours: 1, name: 'Próximo Jogador', phone: '11977776666' },
+  });
+  assert.equal(nextOrder.status, 201);
+  await api(`/api/orders/${nextOrder.data.id}/cancel`, { method: 'POST' });
 });
 
 test('painel exige senha e lista pedidos', async () => {
