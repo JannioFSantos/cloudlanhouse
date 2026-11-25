@@ -62,6 +62,8 @@ Acesse:
 - Host: `http://localhost:8080/host`
 - Painel: `http://localhost:8080/admin`
 
+Na página inicial, a navegação mostra apenas **Preços** e **Regras**. O Host e o Painel não aparecem como links e devem ser acessados diretamente pelos endereços acima.
+
 ## Configuração (`.env`)
 
 Copie `.env.example` para `.env` e ajuste.
@@ -204,6 +206,7 @@ Observações:
 
 - `BASE_URL` e o domínio público estão definidos como `https://cloudlanhouse.v6.rocks` no Compose para manter os links, cookies seguros e URLs do WebSocket alinhados.
 - Mantenha o volume `app-data`: nele ficam sessão, pedidos, fila e segredos. Sem ele, cada deploy zera tudo.
+- A página inicial mostra apenas **Preços** e **Regras**; acesse o [Host](https://cloudlanhouse.v6.rocks/host) e o [Painel](https://cloudlanhouse.v6.rocks/admin) diretamente.
 - O **PC host continua no Windows**: abra `https://cloudlanhouse.v6.rocks/host` e, para o controle, configure `BRIDGE_URL=wss://cloudlanhouse.v6.rocks/ws` e a mesma `HOST_KEY`.
 - TURN: o `coturn` precisa de rede `host` e de uma faixa de portas UDP, o que não combina com o proxy do Coolify. Para quem está atrás de CGNAT, rode o TURN em outro serviço/VPS e preencha `TURN_URL`, `TURN_USERNAME` e `TURN_CREDENTIAL`.
 - Mercado Pago: `MP_NOTIFICATION_URL=https://cloudlanhouse.v6.rocks/api/webhooks/mercadopago`.

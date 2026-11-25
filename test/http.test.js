@@ -144,6 +144,13 @@ test('serve as páginas e o css', async () => {
   assert.equal(home.status, 200);
   const html = await home.text();
   assert.match(html, /Xbox Play/i);
+  assert.doesNotMatch(html, /href="\/(?:admin|host)"/);
+
+  const host = await fetch(`${BASE}/host`);
+  assert.equal(host.status, 200);
+
+  const admin = await fetch(`${BASE}/admin`);
+  assert.equal(admin.status, 200);
 
   const css = await fetch(`${BASE}/assets/style.css`);
   assert.equal(css.status, 200);
