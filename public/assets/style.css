@@ -614,6 +614,7 @@ input::placeholder { color: var(--muted-2); }
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .player-shell.touch-device.touch-ready:not(.has-gamepad) .touch-controls {

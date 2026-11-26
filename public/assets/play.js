@@ -860,6 +860,7 @@ function setupTouchControls() {
   const controls = $('touchControls');
   controls.hidden = false;
   shell.classList.add('touch-device');
+  controls.addEventListener('contextmenu', (event) => event.preventDefault());
 
   controls.querySelectorAll('[data-touch-stick]').forEach((element) => {
     const axis = Number(element.dataset.touchStick);
