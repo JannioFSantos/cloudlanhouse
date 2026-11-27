@@ -66,6 +66,14 @@
               <button class="btn btn-ghost" id="btnPublish" disabled>Republicar para o player</button>
               <button class="btn btn-danger" id="btnStop" disabled>Parar captura</button>
             </div>
+            <label class="row tiny muted mt-4" style="gap: 8px;">
+              <input type="checkbox" id="keepCapture" style="width: auto;" />
+              Manter a captura ativa quando a sessão terminar
+            </label>
+            <p class="tiny muted mt-4 mb-0">
+              Ative para manter o jogo e a captura prontos para o próximo jogador.
+              A conexão será refeita quando ele entrar.
+            </p>
             <p class="tiny muted mt-4 mb-0">
               A captura publicada dispara o início do relógio do cliente.
               Só inicie quando o jogo estiver ligado e pronto para jogar.
@@ -154,15 +162,6 @@
                   sozinha pelo servidor.
                 </p>
               </div>
-
-              <label class="row tiny muted" style="gap: 8px; margin-top: 4px;">
-                <input type="checkbox" id="keepCapture" style="width: auto;" />
-                Manter captura ativa entre jogadores
-              </label>
-              <p class="tiny muted mb-0">
-                Ao encerrar uma sessão, mantém o jogo aberto para o próximo jogador.
-                A transmissão para o cliente será renegociada quando ele entrar.
-              </p>
 
               <button class="btn btn-ghost btn-block" id="btnDetect">Detectar dispositivos</button>
               <button class="btn btn-ghost btn-block" id="btnWindow">Capturar janela do PC</button>

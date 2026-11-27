@@ -150,6 +150,7 @@ test('serve as páginas e o css', async () => {
   assert.equal(host.status, 200);
   const hostHtml = await host.text();
   assert.match(hostHtml, /id="keepCapture"/);
+  assert.ok(hostHtml.indexOf('id="keepCapture"') < hostHtml.indexOf('id="sourceMode"'));
 
   const admin = await fetch(`${BASE}/admin`);
   assert.equal(admin.status, 200);
