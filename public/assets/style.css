@@ -547,6 +547,24 @@ input::placeholder { color: var(--muted-2); }
 
 .player-top .spacer { flex: 1; }
 
+.player-shell.touch-device .player-top {
+  inset: max(8px, env(safe-area-inset-top)) auto auto 50%;
+  width: max-content;
+  max-width: calc(200vw - 24px);
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 14px;
+  background: rgba(8, 8, 12, 0.78);
+  backdrop-filter: blur(10px);
+  transform: translateX(-50%) scale(0.5);
+  transform-origin: top center;
+}
+
+.player-shell.touch-device .player-top .spacer { display: none; }
+
 .pill {
   display: inline-flex;
   align-items: center;
