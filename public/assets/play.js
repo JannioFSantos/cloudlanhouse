@@ -57,6 +57,7 @@ if (!token) {
 
 async function boot() {
   bindUI();
+  updateInputRoute();
   keepAwake();
 
   try {
@@ -832,11 +833,18 @@ function p2pInputAvailable() {
 }
 
 function updateInputRoute() {
-  const node = $('stRoute');
-  if (!node) return;
-  node.textContent = p2pInputAvailable()
-    ? 'DataChannel P2P'
-    : forceWebSocketInput ? 'WebSocket (forçado)' : 'WebSocket (reserva)';
+  const route = p2pInputAvailable() ? 'p2p' : 'ws';
+  const routeText = $('routeText');
+  const routeDot = $('routeDot');
+  const statsRoute = $('stRoute');
+
+  if (routeText) routeText.textContent = route === 'p2p' ? 'DataChannel' : 'WebSocket';
+  if (routeDot) routeDot.className = `dot ${route === 'p2p' ? 'live' : 'reserved'}`;
+  if (statsRoute) {
+    statsRoute.textContent = route === 'p2p'
+      ? 'DataChannel P2P'
+      : forceWebSocketInput ? 'WebSocket (forçado)' : 'WebSocket (reserva)';
+  }
 }
 
 function transmitInput(payload, route) {

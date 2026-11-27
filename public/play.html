@@ -21,12 +21,15 @@
         <span class="pill"><span class="k">resta</span><span class="timer" id="clock">--:--</span></span>
         <span class="pill" id="hoursPill"><span class="k">pacote</span><span id="hoursText">—</span></span>
         <span class="pill hidden" id="padPill"><span class="dot live"></span><span id="padText">controle</span></span>
+        <span class="pill" id="routePill" title="Rota usada para enviar os comandos">
+          <span class="dot reserved" id="routeDot"></span><span id="routeText">WebSocket</span>
+        </span>
         <span class="spacer"></span>
         <button class="btn btn-ghost btn-sm" id="btnSound">ativar som</button>
         <button class="btn btn-ghost btn-sm" id="btnExtend">+ tempo</button>
+        <button class="btn btn-danger btn-sm" id="btnForfeit">desistir</button>
         <button class="btn btn-ghost btn-sm" id="btnStats">stats</button>
         <button class="btn btn-ghost btn-sm" id="btnFull">tela cheia</button>
-        <button class="btn btn-danger btn-sm" id="btnForfeit">desistir</button>
       </div>
 
       <div class="stats-panel hidden" id="statsPanel">

@@ -163,6 +163,8 @@ test('serve as páginas e o css', async () => {
   assert.match(playHtml, /id="touchControls"/);
   assert.match(playHtml, /data-touch-stick="0"/);
   assert.match(playHtml, /data-touch-button="0"/);
+  assert.match(playHtml, /id="routePill"[\s\S]*id="routeText"/);
+  assert.ok(playHtml.indexOf('id="btnForfeit"') < playHtml.indexOf('id="btnStats"'));
 });
 
 test('API pública responde status e preços', async () => {
