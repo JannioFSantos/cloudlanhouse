@@ -272,9 +272,27 @@ test('controle só vale com sessão ativa e é solto ao desistir', async () => {
   await viewer.next((m) => m.type === 'stream:ready');
   await sleep(500); // broadcast de estado até a ponte
 
-  // 5) Cliente aperta A e move o analógico para cima
-  viewer.send({ type: 'input', payload: padPayload({ axes: [0, -1, 0, 0], pressed: [0], triggers: { rt: 1 } }) });
+  // 5) O host encaminha comandos recebidos pelo DataChannel P2P à ponte.
+  host.send({
+    type: 'input:host',
+    payload: padPayload({ axes: [0.5, 0, 0, 0], pressed: [2] }),
+  });
   await until(() => rec.calls.length >= 1);
+  assert.deepEqual(rec.last().buttons, ['X']);
+  assert.equal(rec.last().lx, 0.5);
+
+  // Somente a conexão autenticada do host pode usar esse encaminhamento.
+  const beforeUnauthorizedInput = rec.calls.length;
+  viewer.send({
+    type: 'input:host',
+    payload: padPayload({ pressed: [1] }),
+  });
+  await sleep(150);
+  assert.equal(rec.calls.length, beforeUnauthorizedInput);
+
+  // 6) Cliente também pode usar o caminho WebSocket de reserva.
+  viewer.send({ type: 'input', payload: padPayload({ axes: [0, -1, 0, 0], pressed: [0], triggers: { rt: 1 } }) });
+  await until(() => rec.calls.length >= 2);
   assert.deepEqual(rec.last().buttons, ['A']);
   assert.equal(rec.last().ly, 1);
   assert.equal(rec.last().rt, 1);

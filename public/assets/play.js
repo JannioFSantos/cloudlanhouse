@@ -32,6 +32,13 @@ let warned = new Set();
 let lastInputKey = '';
 let lastInputAt = 0;
 let uiHideTimer = null;
+const forceWebSocketInput = params.get('input') === 'ws';
+let inputDC = null;
+let inputRouteAvailable = false;
+let lastP2pPongAt = 0;
+let inputSequence = 0;
+let currentInputRoute = 'ws';
+let lastInputPayload = null;
 const touchAxes = [0, 0, 0, 0];
 const touchPointers = new Map();
 const stickPointers = new Map();
@@ -71,6 +78,7 @@ async function boot() {
 
   connect();
   setInterval(tick, 500);
+  setInterval(probeInputChannel, 1000);
   setInterval(backupRefresh, 20_000);
   setupTouchControls();
   setupGamepad();
@@ -255,6 +263,10 @@ async function handleOffer(offer) {
       if (event.candidate) ws?.send({ type: 'candidate', payload: event.candidate });
     };
 
+    pc.ondatachannel = (event) => {
+      if (event.channel.label === 'input') attachInputChannel(event.channel);
+    };
+
     pc.ontrack = (event) => {
       const stream = event.streams[0] ?? new MediaStream([event.track]);
       remoteStream = stream;
@@ -292,6 +304,11 @@ async function handleOffer(offer) {
 
 function closePeer() {
   stopStats();
+  inputDC = null;
+  inputRouteAvailable = false;
+  lastP2pPongAt = 0;
+  currentInputRoute = 'ws';
+  updateInputRoute();
   try {
     pc?.close();
   } catch {
@@ -807,14 +824,107 @@ function touchPayload() {
   };
 }
 
+function p2pInputAvailable() {
+  return !forceWebSocketInput
+    && inputDC?.readyState === 'open'
+    && inputRouteAvailable
+    && performance.now() - lastP2pPongAt < 3000;
+}
+
+function updateInputRoute() {
+  const node = $('stRoute');
+  if (!node) return;
+  node.textContent = p2pInputAvailable()
+    ? 'DataChannel P2P'
+    : forceWebSocketInput ? 'WebSocket (forçado)' : 'WebSocket (reserva)';
+}
+
+function transmitInput(payload, route) {
+  if (route === 'p2p') {
+    if (inputDC.bufferedAmount > 8192) return false;
+    try {
+      inputDC.send(JSON.stringify({ k: 'i', s: ++inputSequence, p: payload }));
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  return Boolean(ws?.send({ type: 'input', payload }));
+}
+
 function sendInput(payload) {
-  if (ended || !ws?.ready) return;
+  if (ended) return;
+  const route = p2pInputAvailable() ? 'p2p' : 'ws';
+  if (route !== currentInputRoute) {
+    currentInputRoute = route;
+    lastInputKey = '';
+    updateInputRoute();
+  }
+
   const key = JSON.stringify(payload.axes) + JSON.stringify(payload.buttons);
   const nowTs = Date.now();
-  if (key === lastInputKey && nowTs - lastInputAt < 1000) return;
+  const refreshMs = route === 'p2p' ? 100 : 1000;
+  if (key === lastInputKey && nowTs - lastInputAt < refreshMs) return;
+  if (!transmitInput(payload, route)) return;
+  const changed = key !== lastInputKey;
   lastInputKey = key;
   lastInputAt = nowTs;
-  ws.send({ type: 'input', payload });
+  lastInputPayload = payload;
+
+  if (route === 'p2p' && changed) {
+    for (const delay of [30, 70]) {
+      setTimeout(() => {
+        if (!ended && lastInputPayload === payload && p2pInputAvailable()) {
+          transmitInput(payload, 'p2p');
+        }
+      }, delay);
+    }
+  }
+}
+
+function attachInputChannel(channel) {
+  inputDC = channel;
+  inputSequence = 0;
+  inputRouteAvailable = false;
+  lastP2pPongAt = 0;
+  channel.onopen = () => {
+    probeInputChannel();
+    updateInputRoute();
+  };
+  channel.onclose = () => {
+    if (inputDC === channel) inputDC = null;
+    inputRouteAvailable = false;
+    lastInputKey = '';
+    updateInputRoute();
+  };
+  channel.onmessage = (event) => {
+    let msg;
+    try {
+      msg = JSON.parse(event.data);
+    } catch {
+      return;
+    }
+    if (msg.k === 'route') {
+      inputRouteAvailable = Boolean(msg.ok);
+      updateInputRoute();
+    } else if (msg.k === 'pong') {
+      inputRouteAvailable = Boolean(msg.ok);
+      lastP2pPongAt = performance.now();
+      updateInputRoute();
+    }
+  };
+  if (channel.readyState === 'open') channel.onopen();
+}
+
+function probeInputChannel() {
+  if (ended || inputDC?.readyState !== 'open') return;
+  try {
+    inputDC.send(JSON.stringify({ k: 'ping', id: Date.now() }));
+  } catch {
+    inputRouteAvailable = false;
+    updateInputRoute();
+  }
+  updateInputRoute();
 }
 
 function releaseTouchControls(sendNeutral = true) {

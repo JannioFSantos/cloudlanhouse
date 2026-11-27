@@ -9,15 +9,15 @@ Aluguel de Xbox (ou de um jogo rodando no próprio PC) por tempo, direto no nave
 ```
 Xbox ──HDMI──> placa de captura ─┐
                                  ├─> PC host (navegador) ──WebRTC──> navegador do cliente
-Jogo no PC (janela) ─────────────┘
+Jogo no PC (janela) ─────────────┘                               └─ DataChannel (controle P2P)
 ```
 
 - **Servidor** (`Node.js`, sem dependências): páginas, API, WebSocket de sinalização, fila, pedidos, pagamento Pix e o **relógio autoritativo**.
 - **Host** (`/host`): captura o vídeo do Xbox pela placa HDMI **ou** uma janela do PC (Steam, emulador, qualquer app) e publica via WebRTC.
-- **Player** (`/play.html?s=...`): recebe o vídeo/áudio por WebRTC, mostra o tempo restante e permite estender ou desistir. Em aparelhos com tela sensível ao toque, exibe alavancas e botões virtuais quando o vídeo começa; eles enviam comandos pelo mesmo fluxo da ponte de controle.
+- **Player** (`/play.html?s=...`): recebe o vídeo/áudio por WebRTC, mostra o tempo restante e permite estender ou desistir. Em aparelhos com tela sensível ao toque, exibe alavancas e botões virtuais quando o vídeo começa; os comandos usam DataChannel P2P com reserva por WebSocket.
 - **Painel** (`/admin`): sessão atual, fila, pedidos, eventos, presença de host/player e ações administrativas.
 
-O vídeo **não passa pelo servidor**: ele vai direto do PC host para o navegador do cliente (P2P). O servidor só troca SDP/ICE e controla o tempo. Se a rede impedir o P2P, configure um **TURN**.
+O vídeo **não passa pelo servidor**: ele vai direto do PC host para o navegador do cliente (P2P). O servidor troca SDP/ICE e gerencia sessão/tempo; os comandos P2P passam pelo host e pela conexão autenticada existente até a ponte. Se a rede impedir o P2P, configure um **TURN**.
 
 ## Regras de negócio
 
@@ -124,7 +124,8 @@ A captura de janela exige um clique manual (o navegador não permite iniciar soz
 Para o cliente **jogar** (e não só assistir) um jogo no PC, rode a ponte no mesmo PC que roda o jogo:
 
 ```
-Controle do cliente ──> navegador (play) ──WebSocket──> servidor ──> ponte ──> controle Xbox 360 virtual ──> jogo
+Preferido: navegador (play) ──DataChannel P2P──> host ──WebSocket──> servidor ──> ponte ──> controle virtual
+Reserva:   navegador (play) ─────────────────WebSocket───────────> servidor ──> ponte ──> controle virtual
 ```
 
 1. Confirme que o servidor está rodando. Se ele estiver no próprio PC, inicie-o com `start.bat`; se estiver na VPS, não precisa iniciar outro servidor no PC do jogo.

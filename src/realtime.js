@@ -216,6 +216,11 @@ export function attachRealtime(server) {
           if (presence.bridge) send(presence.bridge, { type: 'input', payload: msg.payload });
           return;
 
+        case 'input:host':
+          if (role !== 'host') return;
+          if (presence.bridge) send(presence.bridge, { type: 'input', payload: msg.payload });
+          return;
+
         case 'stream:ready': {
           if (role !== 'host') return;
           const session = store.data.session;

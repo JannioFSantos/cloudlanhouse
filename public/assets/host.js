@@ -25,6 +25,9 @@ let analyser = null;
 let meterRaf = 0;
 let statsTimer = null;
 let lastStats = null;
+let inputDC = null;
+let bridgeOnline = false;
+let lastInputSeq = -1;
 
 /* ------------------------------------------------------------------ */
 /* Boot                                                               */
@@ -102,18 +105,26 @@ function connect(hostKey) {
     role: 'host',
     key,
     onStatus(status) {
+      if (status !== 'online') {
+        bridgeOnline = false;
+        announceInputRoute();
+      }
       if (status === 'online') setBadge('live', 'conectado');
       else if (status === 'connecting') setBadge('reserved', 'conectando');
       else if (status === 'replaced') {
         setBadge('off', 'aberto em outro lugar');
         toast('Este host foi conectado em outra aba. Feche uma delas.', 'warn', 8000);
-      } else setBadge('off', 'reconectando');
+      } else {
+        setBadge('off', 'reconectando');
+      }
     },
     onOpen(msg) {
       $('authCard').classList.add('hidden');
       $('main').classList.remove('hidden');
       if (msg.iceServers?.length) iceServers = msg.iceServers;
       if (msg.state?.serverNow) setServerNow(msg.state.serverNow);
+      bridgeOnline = Boolean(msg.state?.availability?.bridgeOnline);
+      announceInputRoute();
       applySession(msg.session);
       log('Conectado ao servidor como host.');
       loadDevices(false);
@@ -131,6 +142,8 @@ async function handleMessage(msg) {
   switch (msg.type) {
     case 'host:state':
       if (msg.state?.serverNow) setServerNow(msg.state.serverNow);
+      bridgeOnline = Boolean(msg.state?.availability?.bridgeOnline);
+      announceInputRoute();
       applySession(msg.session);
       break;
 
@@ -218,6 +231,45 @@ async function handleMessage(msg) {
 
     default:
       break;
+  }
+}
+
+function announceInputRoute() {
+  if (inputDC?.readyState !== 'open') return;
+  try {
+    inputDC.send(JSON.stringify({
+      k: 'route',
+      ok: Boolean(bridgeOnline && ws?.ready),
+    }));
+  } catch {
+    // O canal pode estar fechando.
+  }
+}
+
+function handleInputChannelMessage(raw) {
+  if (typeof raw !== 'string' || raw.length > 16_384) return;
+  let msg;
+  try {
+    msg = JSON.parse(raw);
+  } catch {
+    return;
+  }
+
+  if (msg.k === 'i') {
+    if (!Number.isSafeInteger(msg.s) || msg.s <= lastInputSeq) return;
+    lastInputSeq = msg.s;
+    if (!bridgeOnline) return;
+    ws?.send({ type: 'input:host', payload: msg.p });
+  } else if (msg.k === 'ping') {
+    if (bridgeOnline && ws?.ready) {
+      try {
+        inputDC?.send(JSON.stringify({ k: 'pong', id: msg.id, ok: true }));
+      } catch {
+        // O canal pode estar fechando.
+      }
+    } else {
+      announceInputRoute();
+    }
   }
 }
 
@@ -477,6 +529,17 @@ async function publish() {
 
   pc = new RTCPeerConnection({ iceServers });
 
+  inputDC = pc.createDataChannel('input', { ordered: false, maxRetransmits: 0 });
+  inputDC.onopen = () => {
+    lastInputSeq = -1;
+    log('Canal de controle P2P aberto.');
+    announceInputRoute();
+  };
+  inputDC.onclose = () => {
+    if (inputDC) log('Canal de controle P2P fechado.', 'warn');
+  };
+  inputDC.onmessage = (event) => handleInputChannelMessage(event.data);
+
   pc.onicecandidate = (event) => {
     if (event.candidate) ws?.send({ type: 'candidate', payload: event.candidate });
   };
@@ -532,6 +595,15 @@ async function tuneSender(sender, isVideo) {
 function closePeer() {
   stopStats();
   publishing = false;
+  if (inputDC) {
+    inputDC.onclose = null;
+    try {
+      inputDC.close();
+    } catch {
+      // O canal pode já estar fechado.
+    }
+    inputDC = null;
+  }
   try {
     pc?.close();
   } catch {
