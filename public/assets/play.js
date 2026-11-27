@@ -975,10 +975,17 @@ function setupTouchControls() {
   if (!supported) return;
 
   const shell = $('shell');
+  const stage = $('stage');
   const controls = $('touchControls');
+  const video = $('video');
   controls.hidden = false;
   shell.classList.add('touch-device');
-  controls.addEventListener('contextmenu', (event) => event.preventDefault());
+  const preventNativeMenu = (event) => event.preventDefault();
+  stage.addEventListener('contextmenu', preventNativeMenu);
+  video.addEventListener('dragstart', preventNativeMenu);
+  video.setAttribute('controlslist', 'nodownload noplaybackrate');
+  video.setAttribute('disablepictureinpicture', '');
+  controls.addEventListener('contextmenu', preventNativeMenu);
 
   controls.querySelectorAll('[data-touch-stick]').forEach((element) => {
     const axis = Number(element.dataset.touchStick);

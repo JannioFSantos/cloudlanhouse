@@ -530,6 +530,13 @@ input::placeholder { color: var(--muted-2); }
   background: #000;
 }
 
+.player-shell.touch-device .player-stage,
+.player-shell.touch-device .player-stage video {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .player-top {
   position: absolute;
   inset: 0 0 auto 0;
