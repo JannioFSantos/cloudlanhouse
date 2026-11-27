@@ -52,6 +52,7 @@ function boot() {
 function restorePrefs() {
   const prefs = JSON.parse(localStorage.getItem('xp_host_prefs') || '{}');
   if (prefs.autoStart === false) $('autoStart').checked = false;
+  if (prefs.keepCapture === true) $('keepCapture').checked = true;
   if (prefs.captureMode === 'window' || prefs.captureMode === 'card') captureMode = prefs.captureMode;
   if (prefs.resolution) $('resSelect').value = prefs.resolution;
   if (prefs.fps) $('fpsSelect').value = prefs.fps;
@@ -65,6 +66,7 @@ function restorePrefs() {
 function savePrefs() {
   localStorage.setItem('xp_host_prefs', JSON.stringify({
     autoStart: $('autoStart').checked,
+    keepCapture: $('keepCapture').checked,
     captureMode,
     resolution: $('resSelect').value,
     fps: $('fpsSelect').value,
@@ -175,9 +177,17 @@ async function handleMessage(msg) {
       break;
 
     case 'session:ended':
-      log('Sessão encerrada. Parando captura.', 'warn');
       applySession({ ...session, status: 'ended', endsAt: session?.endsAt ?? null });
-      teardown();
+      if ($('keepCapture').checked && stream?.getVideoTracks().some((track) => track.readyState === 'live')) {
+        closePeer();
+        readySent = false;
+        viewerPresent = false;
+        updateUI();
+        log('Sessão encerrada. Captura mantida ativa para o próximo jogador.', 'warn');
+      } else {
+        log('Sessão encerrada. Parando captura.', 'warn');
+        teardown();
+      }
       break;
 
     case 'viewer:joined':
@@ -815,7 +825,7 @@ function bindUI() {
     $('log').innerHTML = '';
   });
 
-  for (const id of ['videoSelect', 'audioSelect', 'resSelect', 'fpsSelect', 'bitrateSelect', 'autoStart']) {
+  for (const id of ['videoSelect', 'audioSelect', 'resSelect', 'fpsSelect', 'bitrateSelect', 'autoStart', 'keepCapture']) {
     $(id).addEventListener('change', savePrefs);
   }
 

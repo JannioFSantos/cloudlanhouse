@@ -144,6 +144,7 @@ Reserva:   navegador (play) ─────────────────W
 Detalhes:
 
 - A ponte lê a chave de `HOST_KEY` (no `.env`) ou de `data/host-key.txt`. Para a VPS atual, use `BRIDGE_URL=wss://cloudlanhouse.v6.rocks/ws` e configure no `.env` do PC do jogo a mesma `HOST_KEY` usada pelo servidor.
+- No `/host`, marque **Manter captura ativa entre jogadores** para manter a fonte de vídeo aberta quando uma sessão terminar; ao entrar o próximo jogador, o host cria uma nova conexão WebRTC sem reiniciar a captura. Desmarcado, o comportamento padrão continua parando a captura.
 - Os comandos só são aplicados **enquanto há sessão ativa**. Ao terminar a sessão, perder a conexão ou ficar 3 s sem sinal do cliente, todos os botões são soltos.
 - Funciona com controles em layout *standard* (Xbox, PS4/PS5 e a maioria dos controles no Chrome/Edge).
 - Para testar sem driver (ou fora do Windows): `npm run bridge:dry` mostra no terminal o que seria apertado.

@@ -148,6 +148,8 @@ test('serve as páginas e o css', async () => {
 
   const host = await fetch(`${BASE}/host`);
   assert.equal(host.status, 200);
+  const hostHtml = await host.text();
+  assert.match(hostHtml, /id="keepCapture"/);
 
   const admin = await fetch(`${BASE}/admin`);
   assert.equal(admin.status, 200);
